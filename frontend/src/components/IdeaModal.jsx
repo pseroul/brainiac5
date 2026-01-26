@@ -1,0 +1,134 @@
+import React, { useState, useEffect } from 'react';
+import { X, Tag } from 'lucide-react'; // Vérifie bien que 'Tag' est ici
+
+const IdeaModal = ({ isOpen, onClose, onSave, initialData }) => {
+  const [formData, setFormData] = useState({ name: '', description: '' });
+  const [currentTag, setCurrentTag] = useState('');
+  const [tags, setTags] = useState([]);
+
+  useEffect(() => {
+    if (initialData) {
+      setFormData({ name: initialData.name || '', description: initialData.description || '' });
+      // Handle tags - if tags is a string (semicolon-separated), split it into array
+      if (initialData.tags && typeof initialData.tags === 'string') {
+        setTags(initialData.tags.split(';').filter(tag => tag.trim() !== ''));
+      } else if (Array.isArray(initialData.tags)) {
+        setTags(initialData.tags);
+      } else {
+        setTags([]);
+      }
+    } else {
+      setFormData({ name: '', description: '' });
+      setTags([]);
+    }
+  }, [initialData, isOpen]);
+
+  const addTag = (e) => {
+    if (e.key === 'Enter' && currentTag.trim() !== '') {
+      e.preventDefault();
+      if (!tags.includes(currentTag.trim())) {
+        setTags([...tags, currentTag.trim()]);
+      }
+      setCurrentTag('');
+    }
+  };
+
+  const removeTag = (indexToRemove) => {
+    setTags(tags.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const dataToSave = {
+      name: formData.name,
+      description: formData.description,
+      tags: tags.length > 0 ? tags.join(';') : "" // Send as semicolon-separated string
+    };
+
+    onSave(dataToSave);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black bg-opacity-70">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-gray-900">
+            {initialData ? 'Modifier l’idée' : 'Nouvelle Idée'}
+          </h2>
+          <button onClick={onClose} type="button" className="p-1 hover:bg-gray-100 rounded-full transition-colors">
+            <X size={24} className="text-gray-400" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Titre de l'idée</label>
+            <input 
+              required
+              className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-gray-50 text-black"
+              placeholder="Ex: Intelligence Artificielle"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
+            <textarea 
+              required
+              rows="4"
+              className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-gray-50 resize-none text-black"
+              placeholder="Décrivez votre idée..."
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Tags (Appuyez sur Entrée)</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {tags.map((tag, index) => (
+                <span key={index} className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded-lg text-sm font-medium">
+                  #{tag}
+                  <button type="button" onClick={() => removeTag(index)} className="hover:text-blue-900">
+                    <X size={14} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="relative">
+              <input 
+                className="w-full border border-gray-200 p-3 pl-10 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 text-black"
+                placeholder="Ajouter un tag..."
+                value={currentTag}
+                onChange={(e) => setCurrentTag(e.target.value)}
+                onKeyDown={addTag}
+              />
+              <Tag className="absolute left-3 top-3.5 text-gray-400" size={18} />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button 
+              type="button"
+              onClick={onClose} 
+              className="flex-1 py-3 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              Annuler
+            </button>
+            <button 
+              type="submit"
+              className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+            >
+              {initialData ? 'Mettre à jour' : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default IdeaModal;
