@@ -5,43 +5,8 @@ It contains two different services:
 - backend: a fastapi server managing data that run on port 8000
 - frontend: a react.js interface to access the backend. 
 
-# BACKEND
-## Install
-To install the application, follow the steps: 
-```
-cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-## Run
-### Generate user
-To generate a single user with 2FA authenticator, execute the command line:
-```
-python authenticator.py <email>
-```
-This will print a link that you can pass to Qr.io to generate a QR Code or directly paste in your Google Authenticator app.
-
-
-### Generate server secret key
-Create a file called ```data/server.json``` and fill it with this model (change the secret_key):`
-```
-{
-    "secret_key" : "my_very_secret_server_key"
-}
-```
-
-
-### Run the server in debug mode (local)
-```
-python main.py
-```
-
-### data storage
-User account and ideas are stored in the directory called *data*. 
-
+# backend documentation
+See [how to install and run backend](/backend/README.md)
 
 # FRONTEND
 ## Install
@@ -53,7 +18,7 @@ npm run dev
 ## Configure your router and Pi
 - Open firewall and forward port 80 (http) & 443 (https) on your router (look at your router documentation)
 - Open your Raspberry Pi port 80 (http) & 443 (https):
-```
+```bash
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw reload

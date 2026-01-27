@@ -1,77 +1,35 @@
-# Idea Management API
+# Brainiac5 FastAPI
 
-A FastAPI backend that provides REST endpoints for managing data and tags with SQLite database.
+A FastAPI backend that provides REST endpoints for managing ideas and tags with SQLite database.
 
 ## Features
 
-- Full CRUD operations for data items and tags
+- Full CRUD operations for idea items and tags
 - Tag-based filtering and searching
 - Relationship management between data and tags
 - Semantic similarity support (via ChromaClient)
 - Health check endpoint
 
-## Endpoints
-
-### GET Endpoints
-
-- `GET /ideas` - Get all data items (with optional limit)
-- `GET /ideas/tags/{tags}` - Get data items by tags (semicolon separated)
-- `GET /ideas/search/{subname}` - Search data items by partial name
-- `GET /ideas/{name}/description` - Get description of a specific data item
-- `GET /tags` - Get all tags
-- `GET /ideas/{data_name}/tags` - Get tags for a specific data item
-- `GET /health` - Health check endpoint
-
-### POST Endpoints
-
-- `POST /ideas` - Add a new data item
-- `POST /tags` - Add a new tag
-- `POST /relations` - Create a relationship between data and tag
-
-### PUT Endpoint
-
-- `PUT /ideas/{name}` - Update an existing data item
-
-### DELETE Endpoints
-
-- `DELETE /ideas/{name}` - Remove a data item
-- `DELETE /tags/{name}` - Remove a tag
-- `DELETE /relations` - Remove a relationship between data and tag
-
-## Data Models
-
-### DataItem
-```json
-{
-  "name": "string",
-  "description": "string",
-  "tags": "string" (optional)
-}
-```
-
-### TagItem
-```json
-{
-  "name": "string"
-}
-```
-
-### RelationItem
-```json
-{
-  "data_name": "string",
-  "tag_name": "string"
-}
-```
-
 ## Setup
 
 1. Install dependencies:
 ```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-2. Run the server:
+2. Generate server secret key
+Create a file called ```data/server.json``` and fill it with this model (change the secret_key):`
+``` bash
+{
+    "secret_key" : "my_very_secret_server_key"
+}
+```
+
+2. Run the server (for debug purpose):
 ```bash
 python main.py
 ```
@@ -87,6 +45,6 @@ python main.py
 The application uses SQLite with the database file located at `data/knowledge.db`. The database schema includes:
 
 - `tags` table: stores tag information
-- `data` table: stores data items with descriptions
-- `relation` table: manages many-to-many relationships between data and tags
+- `ideas` table: stores idea items with descriptions
+- `relation` table: manages many-to-many relationships between ideas and tags
 
