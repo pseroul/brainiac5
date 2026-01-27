@@ -26,65 +26,74 @@ sudo ufw reload
 
 
 ## Install and run nginx
-```
+nginx is use as a gateway to serve your website (both backend and frontend).
+```bash
 sudo apt install nginx
 ```
 
 Configure nginx to serve your application
-- Create file */etc/nginx/sites-available/ideas_handler* and paste the following code:
-```
+- Create file */etc/nginx/sites-available/brainiac5* and paste the following code:
+```bash
 server {
     listen 80;
     server_name [your_public_ip_address];
 
+    # 1. Front-end (React)
     location / {
-        proxy_pass http://127.0.0.1:8050;
+        root /var/www/html/brainiac5;
+        index index.html;
+        try_files $uri /index.html;
+    }
+
+    # 2. Backend (FastAPI) via Proxy
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000/; # Redirect to local Gunicorn 
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 }
 ```
   - Add symbolic link to unabled site
-  ```
-  sudo ln -s /etc/nginx/sites-available/ideas_handler /etc/nginx/sites-enabled/
-  ```
+```bash
+sudo ln -s /etc/nginx/sites-available/brainiac5 /etc/nginx/sites-enabled/
+```
   - Restart nginx
-  ```
-  sudo systemctl restart nginx
-  ```
-
-## Install and run Gunicorn on your system (prod server compared to debug dash server)
-Gunicorn is a production server. Not like the own served by Dash. To go into production, use gunicorn.
-
-### Either run it once:
+```bash
+sudo systemctl restart nginx
 ```
-gunicorn --bind 0.0.0.0:8050 app:server
-```
-### Or as a service started after each server restart:
 
-```
-sudo nano /etc/systemd/system/ideas_handler.service
+## Install and run Gunicorn for FastAPI on your system (prod server)
+Gunicorn is a production server that restarts by itself if something bad append. By creating a service, we also allow for Gunicorn to restart when your server restart.
+ To go into production, use gunicorn.
+
+```bash
+sudo nano /etc/systemd/system/brainiac5.service
 ```
 With file content:
-```
+```bash
 [Unit]
-Description=Gunicorn instance to serve Ideas Handler
+Description=Gunicorn instance to serve Brainiac 5
 After=network.target
 
 [Service]
 User=[your user]
-WorkingDirectory=/home/[your user]/ideas_topics
-Environment="PATH=/home/[your user]/ideas_topics/venv/bin"
-ExecStart=/home/[your user]/ideas_topics/venv/bin/gunicorn --workers 1 --bind 0.0.0.0:8050 app:server
+WorkingDirectory=/home/[your user]/brainiac5
+Environment="PATH=/home/[your user]/brainiac5/backend/venv/bin"
+ExecStart=/home/[your user]/brainiac5/backend/venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app --bind 127.0.0.1:8000
 
 [Install]
 WantedBy=multi-user.target
 ```
 
 Then restart the service
-```
+```bash
 sudo systemctl daemon-reload
-sudo systemctl restart ideas_handler.service
+sudo systemctl restart brainiac5.service
+```
+
+Allow the server to launch the service after reboot: 
+```bash
+sudo systemctl enable fastapi_app
 ```
 
 ## Use a domain name instead of a public IP
@@ -101,7 +110,7 @@ In your nginx configuration file, replace your **[your_public_ip_address]** by *
 > Warning: this is only feasible if you have a domain name and not a public IP address.
 
 Install and run Certbot:
-```
+```bash
 sudo apt install certbot python3-certbot-nginx -y
 sudo certbot --nginx -d [your_domain.com]
 ```
@@ -110,7 +119,7 @@ Skip email address settings...
 Certbot rewrites your nginx configuration with the appropriate certificates.
 
 Close http port:
-```
+```bash
 sudo ufw delete allow 80/tcp
 sudo ufw reload
 ```
