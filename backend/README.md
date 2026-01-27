@@ -48,3 +48,20 @@ The application uses SQLite with the database file located at `data/knowledge.db
 - `ideas` table: stores idea items with descriptions
 - `relation` table: manages many-to-many relationships between ideas and tags
 
+
+## Toolset
+The backend is provided with some tools that helps migrating from a version to another. 
+
+### Update embeddings
+If you change your embedding model, a script is provided to update the chromadb with the new embeddings without modifying the sqlite database. 
+
+Simply run the following script: 
+```bash
+python data_handler.py -e
+```
+
+### Clean database
+If you want to remove space at the beginning or the end of idea and tags, run the following command: 
+```bash
+python cleandb.py
+```

@@ -1,4 +1,5 @@
 import sqlite3
+from config import NAME_DB
 
 def fix_and_clean_database(db_name):
     try:
@@ -148,5 +149,5 @@ def add_idea(db_name) -> None:
 
 if __name__ == "__main__":
     # Remplace par le nom de ton fichier
-    NAME_DB = "backend/data/knowledge.db" 
+
     fix_and_clean_database(NAME_DB)
