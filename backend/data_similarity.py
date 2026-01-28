@@ -1,5 +1,5 @@
 import re
-import utils
+import logging
 import numpy as np
 from typing import Any
 from chroma_client import ChromaClient
@@ -8,6 +8,8 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.feature_extraction.text import TfidfVectorizer
+
+logger = logging.getLogger("uvicorn.error")
 
 class DataSimilarity:
     """
@@ -30,8 +32,10 @@ class DataSimilarity:
         # Stream data in chunks to limit memory usage
         client = ChromaClient()
         data = client.get_all_data(max_items)
+        logger.info("generate originality score")
         originalities = self.generate_originality_score(data['embeddings'])
         
+        logger.info("generate toc tree")
         toc = self._generate_toc_structure(data['documents'], data['ids'], data['embeddings'], originalities)
 
         return toc
@@ -51,10 +55,10 @@ class DataSimilarity:
         Returns:
             list[float]: Normalized originality scores for each document (higher = more original)
         """
-        X = np.array(embeddings)
+        X = np.array(embeddings).astype('float32')
 
         reducer = umap.UMAP(
-            n_neighbors=15,      # Controls local vs. global structure
+            n_neighbors=10,      # Controls local vs. global structure
             n_components=10,     # Target dimensions for clustering
             metric='cosine',     # Use cosine for RoBERTa embeddings
             low_memory=True      # Helps with very large datasets
@@ -62,7 +66,7 @@ class DataSimilarity:
 
         reduced_X = reducer.fit_transform(X)
 
-        lof = LocalOutlierFactor(n_neighbors=20)
+        lof = LocalOutlierFactor(n_neighbors=10)
         lof.fit_predict(reduced_X)
         score_density = -lof.negative_outlier_factor_
         return MinMaxScaler().fit_transform(score_density.reshape(-1, 1)).flatten()
@@ -195,7 +199,7 @@ class DataSimilarity:
 
             # Mise en forme
             title = " & ".join([t.capitalize() for t in final_selection])
-            
+            logger.info(f"generate_synthetic_title: {title}")
             return title if len(title) > 2 else "Divers & " + cluster_docs[0][:20]
 
         except Exception:
