@@ -23,13 +23,12 @@ pip install -r requirements.txt
 
 > Depending on your server (aka Raspberry Pi 4 in my case), your code may generate the output `Illegal Instruction`. In this case, try to install an older version on pytorch. In the case of Raspberry Pi 4 - aarch64, the command `pip install torch==2.6.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu` worked.
 
-2. Generate server secret key
-Create a file called ```data/server.json``` and fill it with this model (change the secret_key):`
+2. Generate secret key:
+In order to generate an OTP key to access the server, run the command:
 ``` bash
-{
-    "secret_key" : "my_very_secret_server_key"
-}
+python authenticator.py [your_email] 
 ```
+It will display a code that you can put in your Google Auth smartphone app. The bundle ***email / otp_secret*** will be saved in `data/users.json`.
 
 2. Run the server (for debug purpose):
 ```bash

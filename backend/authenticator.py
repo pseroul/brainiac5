@@ -48,8 +48,7 @@ def verify_access(email: str, secret_key: str) -> bool:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Create user and generate Google Auth')
     parser.add_argument('email', type=str, help='Email of the user')
-    parser.add_argument('-d', '--debug', help='generate a Google Auth for debug purpose', action="store_true")
 
     args = parser.parse_args()
 
-    generate_auth_link(args.email, args.pwd)
+    generate_auth_link(args.email)
