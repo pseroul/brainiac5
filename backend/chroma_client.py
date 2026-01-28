@@ -1,6 +1,7 @@
 
 import chromadb
 from chromadb.utils import embedding_functions
+from config import CHROMA_DB
 import utils
 
 class ChromaClient:
@@ -12,18 +13,18 @@ class ChromaClient:
     and finding similar data items.
     """
 
-    def __init__(self, db_path: str = "./data/embeddings", collection_name: str = "Ideas_topics") -> None:
+    def __init__(self, collection_name: str = "Ideas") -> None:
         """
         Initialize the Embedder with a ChromaDB client and collection.
         
         Args:
-            db_path (str, optional): Path to the ChromaDB persistent client storage.
-                Defaults to "./data/embeddings".
             collection_name (str, optional): Name of the ChromaDB collection to use.
-                Defaults to "Ideas_topics".
+                Defaults to "Ideas".
         """
+
         self.model_name = "all-distilroberta-v1"
-        self.client = chromadb.PersistentClient(path=db_path)
+
+        self.client = chromadb.PersistentClient(path=CHROMA_DB)
         self.emb_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=self.model_name)
         self.collection = self.client.get_or_create_collection(
             name=collection_name,
