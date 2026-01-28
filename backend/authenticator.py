@@ -3,7 +3,7 @@ import json
 import argparse
 from config import USER_DB
 
-def generate_auth_link(email: str) -> None:
+def generate_auth_link(email: str, debug: bool) -> None:
     """
     Generate authentication link and save user credentials.
     
@@ -12,6 +12,7 @@ def generate_auth_link(email: str) -> None:
     
     Args:
         email (str): User's email address
+        debug (bool): if we generate debug otp
         
     Returns:
         None
@@ -28,6 +29,8 @@ def generate_auth_link(email: str) -> None:
 
     totp = pyotp.TOTP(otp_secret)
     appname = 'Brainiac5'
+    if debug: 
+        appname = "Brainiac5-dev"
     issuer_name = "Seroul Pierre"
     uri = totp.provisioning_uri(name=appname, issuer_name=issuer_name)
 
@@ -48,7 +51,8 @@ def verify_access(email: str, secret_key: str) -> bool:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Create user and generate Google Auth')
     parser.add_argument('email', type=str, help='Email of the user')
+    parser.add_argument('-d', '--debug', help='generate a Google Auth for debug purpose', action="store_true")
 
     args = parser.parse_args()
 
-    generate_auth_link(args.email)
+    generate_auth_link(args.email, args.debug)

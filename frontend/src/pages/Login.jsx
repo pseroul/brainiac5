@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, ShieldCheck, LogIn } from 'lucide-react';
+import { verifyOtp } from '../services/api';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -11,20 +12,17 @@ const handleLogin = async (e) => {
   e.preventDefault();
   
   try {
-    const response = await fetch('http://localhost:8000/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, otp_code: otpCode }),
-    });
-
-    if (response.ok) {
+    const response = await verifyOtp({ email, otp_code: otpCode });
+    
+    // Check if response has data and status
+    if (response && response.data && response.data.status === 'success') {
       localStorage.setItem('isAuthenticated', 'true');
       navigate('/dashboard');
     } else {
       alert("Code Google Authenticator incorrect");
     }
   } catch (error) {
-    alert("Erreur de connexion au serveur");
+    console.error('Login error:', error);
   }
 };
 

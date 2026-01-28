@@ -26,5 +26,7 @@ export const deleteIdea = (name) => api.delete(`/ideas/${name}`);
 export const deleteTag = (name) => api.delete(`/tags/${name}`);
 export const deleteRelation = (name) => api.delete(`/relations/${name}`);
 
+export const verifyOtp = (credentials) => api.post('/verify-otp', credentials);
+
 
 export default api;
