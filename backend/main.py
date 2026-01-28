@@ -21,12 +21,19 @@ init_database()
 app = FastAPI(title="Data Management API", description="API for managing data and tags with SQLite")
 
 # Add CORS middleware
+# Explicitly allow only trusted origins
+origins = [
+    "http://localhost:8050",
+    "http://127.0.0.1:8050",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://pierreseroul.com",
+    "http://pierreseroul.com",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8050",
-                   "http://127.0.0.1:8050",
-                   "http://localhost:5173",
-                   "http://127.0.0.1:5173"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
