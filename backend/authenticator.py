@@ -1,7 +1,7 @@
 import pyotp
 import json
 import argparse
-from backend.config import USER_DB, SERVER_DB
+from config import USER_DB
 
 def generate_auth_link(email: str) -> None:
     """
