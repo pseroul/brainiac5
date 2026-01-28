@@ -7,6 +7,7 @@ from authenticator import verify_access
 from fastapi.middleware.cors import CORSMiddleware
 from config import NAME_DB
 from data_similarity import DataSimilarity
+import logging
 
 from data_handler import (
     init_database, get_data, get_data_from_tags, get_selected_data, 
@@ -270,7 +271,7 @@ async def create_idea(data: IdeaItem) -> dict[str, str]:
                     add_relation(data.name, tag)
                 except Exception as e:
                     # Continue processing other tags even if one fails
-                    print(f"Warning: Failed to process tag '{tag}': {str(e)}")
+                    logging.info(f"Warning: Failed to process tag '{tag}': {str(e)}")
         
         return {"message": f"Data '{data.name}' added successfully"}
     except Exception as e:
@@ -330,7 +331,7 @@ async def update_data_item(name: str, data: IdeaItem) -> dict[str, str]:
         HTTPException: If there's an error updating the data in the database.
     """
     try:
-        print("udpate:", name, data.description)
+        logging.info("udpate:", name, data.description)
         update_data(name, data.description)
         if data.tags and data.tags.strip():
             # Split the semicolon-separated string into individual tags
@@ -341,7 +342,7 @@ async def update_data_item(name: str, data: IdeaItem) -> dict[str, str]:
                     add_relation(data.name, tag)
                 except Exception as e:
                     # Continue processing other tags even if one fails
-                    print(f"Warning: Failed to process tag '{tag}': {str(e)}")
+                    logging.info(f"Warning: Failed to process tag '{tag}': {str(e)}")
         return {"message": f"Data '{name}' updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating data: {str(e)}")

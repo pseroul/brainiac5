@@ -6,6 +6,7 @@ from config import NAME_DB
 import argparse
 import os
 from concurrent.futures import ThreadPoolExecutor
+import logging
 
 
 def init_database() -> None:
@@ -240,11 +241,11 @@ def add_data(name: str, description: str) -> None:
             # Wait for completion but don't block the main thread significantly
             future.result(timeout=30)  # 30 second timeout
             
-        print(f"data '{name}'  added successfully.")
+        logging.info(f"data '{name}'  added successfully.")
     except sqlite3.IntegrityError:
-        print(f"Errr : data '{name}' already exists.")
+        logging.info(f"Errr : data '{name}' already exists.")
     except Exception as e:
-        print(f"Error adding embedding for '{name}': {e}")
+        logging.info(f"Error adding embedding for '{name}': {e}")
     finally:
         conn.close()
 
@@ -268,9 +269,9 @@ def add_tag(name: str) -> None:
             (name,)
         )
         conn.commit()
-        print(f"Tag '{name}' added successfully.")
+        logging.info(f"Tag '{name}' added successfully.")
     except sqlite3.IntegrityError:
-        print(f"Error : tag '{name}' already exists.")
+        logging.info(f"Error : tag '{name}' already exists.")
     finally:
         conn.close()
 
@@ -295,9 +296,9 @@ def add_relation(data_name: str, tag_name: str) -> None:
             (data_name, tag_name)
         )
         conn.commit()
-        print(f"Relation between '{data_name}' and '{tag_name}'  added successfully.")
+        logging.info(f"Relation between '{data_name}' and '{tag_name}'  added successfully.")
     except sqlite3.IntegrityError:
-        print(f"Error : This relation already exists or foreign keys are unvalid.")
+        logging.info(f"Error : This relation already exists or foreign keys are unvalid.")
     finally:
         conn.close()
 
@@ -325,9 +326,9 @@ def remove_data(name: str) -> None:
         conn.commit()
         embedding = ChromaClient()
         embedding.remove_data(name)
-        print(f"data '{name}' removed successfully.")
+        logging.info(f"data '{name}' removed successfully.")
     except sqlite3.Error as e:
-        print(f"Error deleting data : {e}")
+        logging.info(f"Error deleting data : {e}")
     finally:
         conn.close()
 
@@ -351,9 +352,9 @@ def remove_tag(name: str) -> None:
             (name,)
         )
         conn.commit()
-        print(f"Tag '{name}' removed successfully.")
+        logging.info(f"Tag '{name}' removed successfully.")
     except sqlite3.Error as e:
-        print(f"Error deleting tag : {e}")
+        logging.info(f"Error deleting tag : {e}")
     finally:
         conn.close()
 
@@ -379,9 +380,9 @@ def remove_relation(data_name: str, tag_name: str) -> None:
         )
         conn.commit()
         
-        print(f"Relation between '{data_name}' and '{tag_name}' removed successfully.")
+        logging.info(f"Relation between '{data_name}' and '{tag_name}' removed successfully.")
     except sqlite3.Error as e:
-        print(f"Error when deleting relation : {e}")
+        logging.info(f"Error when deleting relation : {e}")
     finally:
         conn.close()
 
@@ -399,7 +400,7 @@ def update_data(name: str, description: str) -> None:
     Returns:
         None
     """
-    print("update_data", name, description)
+    logging.info("update_data", name, description)
     conn = sqlite3.connect(NAME_DB)
     cursor = conn.cursor()
     try:
@@ -415,11 +416,11 @@ def update_data(name: str, description: str) -> None:
             # Wait for completion but don't block the main thread significantly
             future.result(timeout=30)  # 30 second timeout
             
-        print(f"data '{name}'  updated successfully.")
+        logging.info(f"data '{name}'  updated successfully.")
     except sqlite3.IntegrityError:
-        print(f"Error : data '{name}' can't be updated.")
+        logging.info(f"Error : data '{name}' can't be updated.")
     except Exception as e:
-        print(f"Error updating embedding for '{name}': {e}")
+        logging.info(f"Error updating embedding for '{name}': {e}")
     finally:
         conn.close()
 
@@ -442,19 +443,19 @@ def embed_all_data() -> None:
         
         # Process all data items
         total_items = len(data_items)
-        print(f"Regenerating embeddings for {total_items} data items...")
+        logging.info(f"Regenerating embeddings for {total_items} data items...")
         
         for i, item in enumerate(data_items, 1):
             try:
                 embedding.insert_data(item['name'], item['description'])
-                print(f"Processed {i}/{total_items}: {item['name']}")
+                logging.info(f"Processed {i}/{total_items}: {item['name']}")
             except Exception as e:
-                print(f"Error processing item '{item['name']}': {e}")
+                logging.info(f"Error processing item '{item['name']}': {e}")
                 
-        print("Embedding regeneration completed successfully.")
+        logging.info("Embedding regeneration completed successfully.")
         
     except Exception as e:
-        print(f"Error in embed_all_data: {e}")
+        logging.info(f"Error in embed_all_data: {e}")
         raise
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import sqlite3
+import logging
 from config import NAME_DB
 
 def clean_database() -> None:
@@ -58,10 +59,10 @@ def clean_database() -> None:
         
         conn.commit()
         cursor.execute("PRAGMA foreign_keys = ON")
-        print("Database cleaned, duplicates merged and orphans removed.")
+        logging.info("Database cleaned, duplicates merged and orphans removed.")
 
     except sqlite3.Error as e:
-        print(f"Critical SQL error: {e}")
+        logging.info(f"Critical SQL error: {e}")
         conn.rollback()
     finally:
         conn.close()

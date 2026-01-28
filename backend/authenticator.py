@@ -1,6 +1,7 @@
 import pyotp
 import json
 import argparse
+import logging
 from config import USER_DB
 
 def generate_auth_link(email: str, debug: bool) -> None:
@@ -34,7 +35,7 @@ def generate_auth_link(email: str, debug: bool) -> None:
     issuer_name = "Seroul Pierre"
     uri = totp.provisioning_uri(name=appname, issuer_name=issuer_name)
 
-    print(f"Pasted the following link in Qr.io to obtain a QR code : {uri}")
+    logging.info(f"Pasted the following link in Qr.io to obtain a QR code : {uri}")
 
 def verify_access(email: str, secret_key: str) -> bool:
     with open(USER_DB, "r") as f:
