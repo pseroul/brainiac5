@@ -156,7 +156,7 @@ class DataSimilarity:
         clean_docs = [re.sub(r'[^\w\s]', ' ', doc.lower()) for doc in cluster_docs]
 
         try:
-            # On extrait un peu plus de termes pour avoir du choix après filtrage
+            # Extract a bit more terms to have choices after filtering
             vectorizer = TfidfVectorizer(
                 stop_words='english', 
                 ngram_range=(1, 2), 
@@ -167,19 +167,19 @@ class DataSimilarity:
             scores = np.asarray(tfidf_matrix.sum(axis=0)).flatten()
             terms = vectorizer.get_feature_names_out()
             
-            # Tri des termes par score TF-IDF décroissant
+            # Sort terms by TF-IDF score in descending order
             sorted_indices = np.argsort(scores)[::-1]
             sorted_terms = [terms[i] for i in sorted_indices]
             
             final_selection = []
             
             for term in sorted_terms:
-                # Sécurité : On limite à 2 ou 3 concepts clés pour le titre
+                # Safety: Limit to 2 or 3 key concepts for the title
                 if len(final_selection) >= 2:
                     break
                 
-                # On vérifie si les mots du terme actuel sont déjà présents 
-                # dans les termes déjà sélectionnés (et inversement)
+                # Check if words from current term are already present
+                # in already selected terms (and vice versa)
                 words_in_term = set(term.split())
                 is_redundant = False
                 

@@ -3,18 +3,17 @@ from pydantic import BaseModel
 from typing import Hashable, List, Optional, Any
 import sqlite3
 import uvicorn
-import json
-import pyotp
-from config import SERVER_DB
+from authenticator import verify_access
 from fastapi.middleware.cors import CORSMiddleware
+from config import NAME_DB
+from data_similarity import DataSimilarity
 
 from data_handler import (
     init_database, get_data, get_data_from_tags, get_selected_data, 
     get_description, get_tags, get_tags_from_data, add_data, add_tag, 
     add_relation, remove_data, remove_tag, remove_relation, update_data, get_similar_data
 )
-from config import NAME_DB
-from data_similarity import DataSimilarity
+
 
 # Initialize the database
 init_database()
@@ -35,26 +34,65 @@ app.add_middleware(
 
 # Pydantic models
 class IdeaItem(BaseModel):
+    """Data model for idea items with name, description, and tags.
+    
+    Attributes:
+        name (str): The name of the idea item.
+        description (str): The description of the idea item.
+        tags (Optional[str]): Tags associated with the idea item, 
+                             separated by semicolons.
+    """
     name: str
     description: str
     tags: Optional[str] = None #tags are semicolon-separated
 
 class TagItem(BaseModel):
+    """Data model for tag items.
+    
+    Attributes:
+        name (str): The name of the tag.
+    """
     name: str
 
 class RelationItem(BaseModel):
+    """Data model for relations between data items and tags.
+    
+    Attributes:
+        data_name (str): The name of the data item.
+        tag_name (str): The name of the tag.
+    """
     data_name: str
     tag_name: str
 
 class TagResponse(BaseModel):
+    """Data model for tag responses.
+    
+    Attributes:
+        name (str): The name of the tag.
+    """
     name: str
 
 class LoginRequest(BaseModel):
+    """Data model for login requests with email and OTP code.
+    
+    Attributes:
+        email (str): The user's email address.
+        otp_code (str): The one-time password code for verification.
+    """
     email: str
     otp_code: str
 
 # Helper function to get database connection
 def get_db():
+    """Get a database connection for SQLite operations.
+    
+    This function creates a connection to the SQLite database and yields it
+    for use in database operations. The connection is automatically closed
+    after use.
+    
+    Yields:
+        sqlite3.Connection: A SQLite database connection object.
+    """
     conn = sqlite3.connect(NAME_DB)
     yield conn
     conn.close()
@@ -62,7 +100,18 @@ def get_db():
 # GET endpoints
 @app.get("/ideas", response_model=List[IdeaItem])
 async def get_all_data(limit: int = 500) -> List[dict[Hashable, Any]]:
-    """Get all data items with optional limit"""
+    """Get all data items with optional limit.
+    
+    Args:
+        limit (int, optional): Maximum number of data items to return. 
+                              Defaults to 500.
+    
+    Returns:
+        List[dict[Hashable, Any]]: List of data items with their details.
+    
+    Raises:
+        HTTPException: If there's an error retrieving data from the database.
+    """
     try:
         data = get_data(limit)
         return data
@@ -71,7 +120,19 @@ async def get_all_data(limit: int = 500) -> List[dict[Hashable, Any]]:
 
 @app.get("/ideas/tags/{tags}", response_model=List[IdeaItem])
 async def get_data_by_tags(tags: str, limit: int = 500) -> List[dict[Hashable, str]]:
-    """Get data items by tags (semicolon separated)"""
+    """Get data items by tags (semicolon separated).
+    
+    Args:
+        tags (str): Tags to filter data items, separated by semicolons.
+        limit (int, optional): Maximum number of data items to return. 
+                              Defaults to 500.
+    
+    Returns:
+        List[dict[Hashable, str]]: List of data items matching the specified tags.
+    
+    Raises:
+        HTTPException: If there's an error retrieving data from the database.
+    """
     try:
         data = get_data_from_tags(tags, limit)
         return data
@@ -80,7 +141,17 @@ async def get_data_by_tags(tags: str, limit: int = 500) -> List[dict[Hashable, s
 
 @app.get("/ideas/search/{subname}", response_model=List[IdeaItem])
 async def search_data(subname: str) -> List[dict[Hashable, Any]]:
-    """Search data items by partial name"""
+    """Search data items by partial name.
+    
+    Args:
+        subname (str): Partial name to search for in data items.
+    
+    Returns:
+        List[dict[Hashable, Any]]: List of data items matching the search term.
+    
+    Raises:
+        HTTPException: If there's an error searching data in the database.
+    """
     try:
         data = get_selected_data(subname)
         return data
@@ -89,7 +160,17 @@ async def search_data(subname: str) -> List[dict[Hashable, Any]]:
 
 @app.get("/ideas/{name}/description", response_model=str)
 async def get_data_description(name: str) -> str:
-    """Get description of a specific data item"""
+    """Get description of a specific data item.
+    
+    Args:
+        name (str): The name of the data item to retrieve description for.
+    
+    Returns:
+        str: The description of the specified data item.
+    
+    Raises:
+        HTTPException: If there's an error retrieving the description from the database.
+    """
     try:
         description = get_description(name)
         return description
@@ -98,7 +179,14 @@ async def get_data_description(name: str) -> str:
 
 @app.get("/tags", response_model=List[TagResponse])
 async def get_all_tags() -> List[dict[Hashable, Any]]:
-    """Get all tags"""
+    """Get all tags.
+    
+    Returns:
+        List[dict[Hashable, Any]]: List of all tags in the system.
+    
+    Raises:
+        HTTPException: If there's an error retrieving tags from the database.
+    """
     try:
         tags = get_tags()
         return tags
@@ -107,7 +195,17 @@ async def get_all_tags() -> List[dict[Hashable, Any]]:
 
 @app.get("/ideas/{data_name}/tags", response_model=List[str])
 async def get_tags_for_data(data_name: str):
-    """Get tags for a specific data item"""
+    """Get tags for a specific data item.
+    
+    Args:
+        data_name (str): The name of the data item to retrieve tags for.
+    
+    Returns:
+        List[str]: List of tags associated with the specified data item.
+    
+    Raises:
+        HTTPException: If there's an error retrieving tags from the database.
+    """
     try:
         tags = get_tags_from_data(data_name)
         return tags
@@ -116,7 +214,18 @@ async def get_tags_for_data(data_name: str):
 
 @app.get("/data/{data_name}/similar", response_model=List[IdeaItem])
 async def get_similar_data_endpoint(data_name: str):
-    """Get similar data items based on semantic similarity"""
+    """Get similar data items based on semantic similarity.
+    
+    Args:
+        data_name (str): The name of the data item to find similar items for.
+    
+    Returns:
+        List[IdeaItem]: List of similar data items based on semantic similarity.
+    
+    Raises:
+        HTTPException: If the data item is not found or there's an error 
+                      retrieving similar data.
+    """
     try:
         # We need to get the data item first to get its description
         data_item = get_data_from_tags(data_name, limit=1)
@@ -132,7 +241,17 @@ async def get_similar_data_endpoint(data_name: str):
 # POST endpoints
 @app.post("/ideas", response_model=dict)
 async def create_idea(data: IdeaItem) -> dict[str, str]:
-    """Add a new idea item"""
+    """Add a new idea item.
+    
+    Args:
+        data (IdeaItem): The idea item data to add, including name, description, and optional tags.
+    
+    Returns:
+        dict[str, str]: A success message indicating the idea item was added.
+    
+    Raises:
+        HTTPException: If there's an error adding the data to the database.
+    """
     try:
         add_data(data.name, data.description)
         
@@ -154,7 +273,17 @@ async def create_idea(data: IdeaItem) -> dict[str, str]:
 
 @app.post("/tags", response_model=dict)
 async def create_tag(tag: TagItem) -> dict[str, str]:
-    """Add a new tag"""
+    """Add a new tag.
+    
+    Args:
+        tag (TagItem): The tag data to add.
+    
+    Returns:
+        dict[str, str]: A success message indicating the tag was added.
+    
+    Raises:
+        HTTPException: If there's an error adding the tag to the database.
+    """
     try:
         add_tag(tag.name)
         return {"message": f"Tag '{tag.name}' added successfully"}
@@ -163,7 +292,17 @@ async def create_tag(tag: TagItem) -> dict[str, str]:
 
 @app.post("/relations", response_model=dict)
 async def create_relation(relation: RelationItem) -> dict[str, str]:
-    """Create a relationship between data and tag"""
+    """Create a relationship between data and tag.
+    
+    Args:
+        relation (RelationItem): The relationship data containing data name and tag name.
+    
+    Returns:
+        dict[str, str]: A success message indicating the relationship was created.
+    
+    Raises:
+        HTTPException: If there's an error creating the relationship in the database.
+    """
     try:
         add_relation(relation.data_name, relation.tag_name)
         return {"message": f"Relation between '{relation.data_name}' and '{relation.tag_name}' added successfully"}
@@ -173,7 +312,18 @@ async def create_relation(relation: RelationItem) -> dict[str, str]:
 # PUT endpoint
 @app.put("/ideas/{name}", response_model=dict)
 async def update_data_item(name: str, data: IdeaItem) -> dict[str, str]:
-    """Update an existing data item"""
+    """Update an existing data item.
+    
+    Args:
+        name (str): The name of the data item to update.
+        data (IdeaItem): The updated data item information including name, description, and optional tags.
+    
+    Returns:
+        dict[str, str]: A success message indicating the data item was updated.
+    
+    Raises:
+        HTTPException: If there's an error updating the data in the database.
+    """
     try:
         print("udpate:", name, data.description)
         update_data(name, data.description)
@@ -194,7 +344,17 @@ async def update_data_item(name: str, data: IdeaItem) -> dict[str, str]:
 # DELETE endpoints
 @app.delete("/ideas/{name}", response_model=dict)
 async def delete_data(name: str) -> dict[str, str]:
-    """Remove a data item"""
+    """Remove a data item.
+    
+    Args:
+        name (str): The name of the data item to remove.
+    
+    Returns:
+        dict[str, str]: A success message indicating the data item was removed.
+    
+    Raises:
+        HTTPException: If there's an error removing the data from the database.
+    """
     try:
         remove_data(name)
         return {"message": f"Data '{name}' removed successfully"}
@@ -203,7 +363,17 @@ async def delete_data(name: str) -> dict[str, str]:
 
 @app.delete("/tags/{name}", response_model=dict)
 async def delete_tag(name: str) -> dict[str, str]:
-    """Remove a tag"""
+    """Remove a tag.
+    
+    Args:
+        name (str): The name of the tag to remove.
+    
+    Returns:
+        dict[str, str]: A success message indicating the tag was removed.
+    
+    Raises:
+        HTTPException: If there's an error removing the tag from the database.
+    """
     try:
         remove_tag(name)
         return {"message": f"Tag '{name}' removed successfully"}
@@ -212,7 +382,17 @@ async def delete_tag(name: str) -> dict[str, str]:
 
 @app.delete("/relations", response_model=dict)
 async def delete_relation(relation: RelationItem) -> dict[str, str]:
-    """Remove a relationship between data and tag"""
+    """Remove a relationship between data and tag.
+    
+    Args:
+        relation (RelationItem): The relationship data containing data name and tag name.
+    
+    Returns:
+        dict[str, str]: A success message indicating the relationship was removed.
+    
+    Raises:
+        HTTPException: If there's an error removing the relationship from the database.
+    """
     try:
         remove_relation(relation.data_name, relation.tag_name)
         return {"message": f"Relation between '{relation.data_name}' and '{relation.tag_name}' removed successfully"}
@@ -228,7 +408,18 @@ async def health_check() -> dict[str, str]:
 # TOC endpoint
 @app.get("/toc/structure", response_model=list)
 async def generate_toc_structure(max_items: int = 500) -> list:
-    """Generate hierarchical table of contents structure from all data"""
+    """Generate hierarchical table of contents structure from all data.
+    
+    Args:
+        max_items (int, optional): Maximum number of items to include in the TOC. 
+                                  Defaults to 500.
+    
+    Returns:
+        list: Hierarchical table of contents structure generated from all data.
+    
+    Raises:
+        HTTPException: If there's an error generating the TOC structure.
+    """
     try:
         data_similarity = DataSimilarity()
         toc = data_similarity.generate_toc_structure(max_items)
@@ -236,37 +427,24 @@ async def generate_toc_structure(max_items: int = 500) -> list:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating TOC structure: {str(e)}")
 
-@app.get("/setup-otp")
-def setup_otp() -> dict[str, Any]:
-    """
-    Étape de configuration : génère l'URL pour Google Authenticator.
-    Tu peux copier ce lien dans un générateur de QR Code.
-    """
-    with open(SERVER_DB, "r") as f:
-        server = json.load(f)
-    
-    secret_key = server['secret_key']
-    totp = pyotp.TOTP(secret_key)
-    # Crée l'URL que l'application Google Authenticator peut lire
-    provisioning_url = totp.provisioning_uri(name="VirtualBrain", issuer_name="RaspberryPi")
-    return {"url": provisioning_url, "secret": secret_key}
-
 @app.post("/verify-otp")
 def verify_otp(request: LoginRequest) -> dict[str, str]:
-    """
-    Vérifie si le code envoyé par React est valide.
-    """
-    with open(SERVER_DB, "r") as f:
-        server = json.load(f)
+    """Verify the OTP code sent by React.
     
-    secret_key = server['secret_key']
-    totp = pyotp.TOTP(secret_key)
+    Args:
+        request (LoginRequest): The login request containing email and OTP code.
     
-    # Vérifie le code à 6 chiffres
-    if totp.verify(request.otp_code):
-        return {"status": "success", "message": "Connexion autorisée"}
+    Returns:
+        dict[str, str]: A success response with status and message if verification passes.
+    
+    Raises:
+        HTTPException: If the OTP code is invalid or expired.
+    """
+    # Check the 6-digit code
+    if verify_access(request.email, request.otp_code):
+        return {"status": "success", "message": "Connection authorized"}
     else:
-        raise HTTPException(status_code=401, detail="Code invalide ou expiré")
+        raise HTTPException(status_code=401, detail="Invalid or expired code")
 
 
 if __name__ == "__main__":

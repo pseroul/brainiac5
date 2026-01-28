@@ -104,7 +104,6 @@ def get_data(limit: int = 500) -> list[dict[Hashable, Any]]:
     """
     df = pd.read_sql_query(query, conn)
     conn.close()
-    print(df)
     return df.to_dict("records")
 
 def get_selected_data(subname: str) -> list[dict[Hashable, Any]]:

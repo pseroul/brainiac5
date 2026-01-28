@@ -55,5 +55,5 @@ Then move it to the location served by nginx:
 ```bash
 sudo mkdir /var/www/html/brainiac5/
 sudo rm -Rf /var/www/html/brainiac5/*
-sudo cp -r backend/dist/* /var/www/html/brainiac5/
+sudo cp -r frontend/dist/* /var/www/html/brainiac5/
 ```

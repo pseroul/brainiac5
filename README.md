@@ -77,9 +77,9 @@ After=network.target
 
 [Service]
 User=[your user]
-WorkingDirectory=/home/[your user]/brainiac5
+WorkingDirectory=/home/[your user]/brainiac5/backend
 Environment="PATH=/home/[your user]/brainiac5/backend/venv/bin"
-ExecStart=/home/[your user]/brainiac5/backend/venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app --bind 127.0.0.1:8000
+ExecStart=/home/[your user]/brainiac5/backend/venv/bin/gunicorn -w 1 -k uvicorn.workers.UvicornWorker main:app --bind 127.0.0.1:8000
 
 [Install]
 WantedBy=multi-user.target
@@ -93,7 +93,7 @@ sudo systemctl restart brainiac5.service
 
 Allow the server to launch the service after reboot: 
 ```bash
-sudo systemctl enable fastapi_app
+sudo systemctl enable brainiac5.service
 ```
 
 ## Use a domain name instead of a public IP
@@ -109,7 +109,10 @@ In your nginx configuration file, replace your **[your_public_ip_address]** by *
 ## Use certificates for HTTPS connection
 > Warning: this is only feasible if you have a domain name and not a public IP address.
 
-Install and run Certbot:
+1. Modify nginx
+In */etc/nginx/sites-enabled/brainiac5* replace `server_name [your_public_ip_address];`with `server_name [your_domain.com] [www.yourdomain.com];`.
+
+2. Install and run Certbot:
 ```bash
 sudo apt install certbot python3-certbot-nginx -y
 sudo certbot --nginx -d [your_domain.com]
@@ -118,7 +121,7 @@ Skip email address settings...
 
 Certbot rewrites your nginx configuration with the appropriate certificates.
 
-Close http port:
+3. Close http port:
 ```bash
 sudo ufw delete allow 80/tcp
 sudo ufw reload

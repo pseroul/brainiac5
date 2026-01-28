@@ -21,6 +21,8 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+> Depending on your server (aka Raspberry Pi 4 in my case), your code may generate the output `Illegal Instruction`. In this case, try to install an older version on pytorch. In the case of Raspberry Pi 4 - aarch64, the command `pip install torch==2.6.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu` worked.
+
 2. Generate server secret key
 Create a file called ```data/server.json``` and fill it with this model (change the secret_key):`
 ``` bash
