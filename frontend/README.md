@@ -36,8 +36,11 @@ npx tailwindcss init -p
 
 2. Compile the code on your **machine**:
 ```bash
-npm run build
+VITE_API_URL=https://[your_website].com/api  npm run build
 ```
+The api url allows not to use localhost for rooting but the actual website instead.
+
+
 push the result on Github: 
 ```bash
 git commit -m "push built frontend"
@@ -48,7 +51,7 @@ git push
 First, retrieve the code: 
 ```bash
 git commit -m "push built frontend"
-git push
+git pull
 ```
 
 Then move it to the location served by nginx:
@@ -56,4 +59,10 @@ Then move it to the location served by nginx:
 sudo mkdir /var/www/html/brainiac5/
 sudo rm -Rf /var/www/html/brainiac5/*
 sudo cp -r frontend/dist/* /var/www/html/brainiac5/
+```
+
+it is a good thing to reload nginx: 
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart nginx.service
 ```
