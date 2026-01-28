@@ -9,6 +9,8 @@ from config import NAME_DB
 from data_similarity import DataSimilarity
 import logging
 
+logger = logging.getLogger("uvicorn.error")
+
 from data_handler import (
     init_database, get_data, get_data_from_tags, get_selected_data, 
     get_description, get_tags, get_tags_from_data, add_data, add_tag, 
@@ -271,7 +273,7 @@ async def create_idea(data: IdeaItem) -> dict[str, str]:
                     add_relation(data.name, tag)
                 except Exception as e:
                     # Continue processing other tags even if one fails
-                    logging.info(f"Warning: Failed to process tag '{tag}': {str(e)}")
+                    logger.info(f"Warning: Failed to process tag '{tag}': {str(e)}")
         
         return {"message": f"Data '{data.name}' added successfully"}
     except Exception as e:
@@ -331,7 +333,7 @@ async def update_data_item(name: str, data: IdeaItem) -> dict[str, str]:
         HTTPException: If there's an error updating the data in the database.
     """
     try:
-        logging.info("udpate:", name, data.description)
+        logger.info("udpate:", name, data.description)
         update_data(name, data.description)
         if data.tags and data.tags.strip():
             # Split the semicolon-separated string into individual tags
@@ -342,7 +344,7 @@ async def update_data_item(name: str, data: IdeaItem) -> dict[str, str]:
                     add_relation(data.name, tag)
                 except Exception as e:
                     # Continue processing other tags even if one fails
-                    logging.info(f"Warning: Failed to process tag '{tag}': {str(e)}")
+                    logger.info(f"Warning: Failed to process tag '{tag}': {str(e)}")
         return {"message": f"Data '{name}' updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating data: {str(e)}")

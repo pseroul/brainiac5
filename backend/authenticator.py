@@ -4,6 +4,8 @@ import argparse
 import logging
 from config import USER_DB
 
+logger = logging.getLogger("uvicorn.error")
+
 def generate_auth_link(email: str, debug: bool) -> None:
     """
     Generate authentication link and save user credentials.
@@ -35,7 +37,7 @@ def generate_auth_link(email: str, debug: bool) -> None:
     issuer_name = "Seroul Pierre"
     uri = totp.provisioning_uri(name=appname, issuer_name=issuer_name)
 
-    logging.info(f"Pasted the following link in Qr.io to obtain a QR code : {uri}")
+    logger.info(f"Pasted the following link in Qr.io to obtain a QR code : {uri}")
 
 def verify_access(email: str, secret_key: str) -> bool:
     with open(USER_DB, "r") as f:
