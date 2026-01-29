@@ -333,8 +333,7 @@ async def update_data_item(name: str, data: IdeaItem) -> dict[str, str]:
         HTTPException: If there's an error updating the data in the database.
     """
     try:
-        logger.info("udpate:", name, data.description)
-        update_data(name, data.description)
+        update_data(data.name, data.description)
         if data.tags and data.tags.strip():
             # Split the semicolon-separated string into individual tags
             tags_list = [tag.strip() for tag in data.tags.split(';') if tag.strip()]
@@ -345,7 +344,7 @@ async def update_data_item(name: str, data: IdeaItem) -> dict[str, str]:
                 except Exception as e:
                     # Continue processing other tags even if one fails
                     logger.info(f"Warning: Failed to process tag '{tag}': {str(e)}")
-        return {"message": f"Data '{name}' updated successfully"}
+        return {"message": f"Data '{data.name}' updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating data: {str(e)}")
 

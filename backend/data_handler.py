@@ -4,7 +4,6 @@ import pandas as pd
 from chroma_client import ChromaClient
 from config import NAME_DB
 import argparse
-import os
 from concurrent.futures import ThreadPoolExecutor
 import logging
 
@@ -401,7 +400,7 @@ def update_data(name: str, description: str) -> None:
     Returns:
         None
     """
-    logger.info("update_data", name, description)
+    logger.info(f"update_data: {name} / {description}")
     conn = sqlite3.connect(NAME_DB)
     cursor = conn.cursor()
     try:
