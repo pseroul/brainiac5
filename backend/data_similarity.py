@@ -33,10 +33,10 @@ class DataSimilarity:
         # Stream data in chunks to limit memory usage
         client = ChromaClient()
         data = client.get_all_data(max_items)
-        logger.info("generate originality score")
+        logger.debug("generate originality score")
         originalities = self.generate_originality_score(data['embeddings'])
         
-        logger.info("generate toc tree")
+        logger.debug("generate toc tree")
         toc = self._generate_toc_structure(data['documents'], data['ids'], data['embeddings'], originalities)
 
         return toc
@@ -204,7 +204,7 @@ class DataSimilarity:
 
             # Mise en forme
             title = " & ".join([t.capitalize() for t in final_selection])
-            logger.info(f"generate_synthetic_title: {title}")
+            logger.debug(f"generate_synthetic_title: {title}")
             return title if len(title) > 2 else "Divers & " + cluster_docs[0][:20]
 
         except Exception:
