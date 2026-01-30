@@ -1,4 +1,6 @@
 import re
+import os
+import json
 import logging
 import numpy as np
 from typing import Any
@@ -9,35 +11,76 @@ from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.feature_extraction.text import TfidfVectorizer
 from utils import unformat_text
+from config import TOC_CACHE_PATH
 
 logger = logging.getLogger("uvicorn.error")
+
+
+def save_toc_structure(structure) -> None:
+        """
+        Save the table of contents structure to a cache file for future use.
+        
+        This function serializes the hierarchical structure data and stores it in
+        a JSON file so that the expensive generation process doesn't need to be
+        repeated on every application startup or refresh.
+        
+        Args:
+            structure (list[dict]): The hierarchical structure data to be cached.
+                This should be the output from DataSimilarity.generate_toc_structure().
+                
+        Returns:
+            None
+        """
+        try:
+            # Save the raw structure data (which is JSON serializable)
+            with open(TOC_CACHE_PATH, 'w') as f:
+                json.dump(structure, f)
+        except Exception as e:
+            logger.error(f"Error saving TOC structure: {e}")
+
+def load_toc_structure():
+    """
+    Load the table of contents structure from cache file if it exists.
+    
+    This function attempts to read previously cached structure data from
+    the cache file. If the file doesn't exist or is corrupted, it returns None.
+    
+    Returns:
+        list[dict] or None: The cached structure data if available and valid,
+            or None if no cache exists or if there was an error loading it.
+    """
+    try:
+        if os.path.exists(TOC_CACHE_PATH):
+            with open(TOC_CACHE_PATH, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading TOC structure: {e}")
+    return None
 
 class DataSimilarity:
     """
     A class for ordering ideas.
     """
     
-    def generate_toc_structure(self, max_items: int = 500) -> list:
+    def generate_toc_structure(self) -> list:
         """
         Generate a hierarchical table of contents structure from all data.
         
         Creates a tree-like structure organizing all data items hierarchically
         based on semantic similarities using clustering techniques.
         
-        Args:
-            max_items (int): Maximum number of items to process to limit memory usage
-            
         Returns:
             list: Hierarchical structure of data items
         """
         # Stream data in chunks to limit memory usage
         client = ChromaClient()
-        data = client.get_all_data(max_items)
+        data = client.get_all_data()
         logger.debug("generate originality score")
         originalities = self.generate_originality_score(data['embeddings'])
         
         logger.debug("generate toc tree")
         toc = self._generate_toc_structure(data['documents'], data['ids'], data['embeddings'], originalities)
+        save_toc_structure(toc)
 
         return toc
 
@@ -209,3 +252,5 @@ class DataSimilarity:
 
         except Exception:
             return "Section : " + cluster_docs[0][:30] + "..."
+        
+    

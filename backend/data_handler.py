@@ -46,7 +46,7 @@ def init_database() -> None:
     conn.close()
 
 # GET DATA OR TAGS
-def get_data_from_tags(tags: str, limit: int = 500) -> list[dict[Hashable, str]]:
+def get_data_from_tags(tags: str) -> list[dict[Hashable, str]]:
     """
     Retrieve data items associated with specific tags.
     
@@ -54,13 +54,12 @@ def get_data_from_tags(tags: str, limit: int = 500) -> list[dict[Hashable, str]]
     
     Args:
         tags (str): Semicolon-separated string of tag names
-        limit (int): Maximum number of results to return to limit memory usage
         
     Returns:
         list[dict[Hashable, str]]: List of dictionaries containing data items
     """
     if not tags:
-        return get_data(limit)
+        return get_data()
     else:
         tags_list = tags.split(";")
         placeholders = ", ".join(["?"] * len(tags_list))
@@ -70,14 +69,13 @@ def get_data_from_tags(tags: str, limit: int = 500) -> list[dict[Hashable, str]]
         FROM data d
         JOIN relation r ON d.name = r.data_name
         JOIN tags t ON r.tag_name = t.name
-        WHERE t.name IN ({placeholders})
-        LIMIT {limit};
+        WHERE t.name IN ({placeholders});
         """
         df = pd.read_sql_query(query, conn, params=tags_list)
         conn.close()
     return df.to_dict("records")
 
-def get_data(limit: int = 500) -> list[dict[Hashable, Any]]:
+def get_data() -> list[dict[Hashable, Any]]:
     """
     Retrieve all data items from the database with limit to prevent memory issues.
     
@@ -100,8 +98,7 @@ def get_data(limit: int = 500) -> list[dict[Hashable, Any]]:
     LEFT JOIN 
         relation r ON d.name = r.data_name
     GROUP BY 
-        d.name, d.description
-    LIMIT {limit};
+        d.name, d.description;
     """
     df = pd.read_sql_query(query, conn)
     conn.close()

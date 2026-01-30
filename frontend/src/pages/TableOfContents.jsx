@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, BookOpen, ChevronRight, Loader2, X } from 'lucide-react';
-import { getTocStructure } from '../services/api';
+import { ArrowLeft, BookOpen, ChevronRight, Loader2, X, RotateCcw } from 'lucide-react';
+import { getTocStructure, updateTocStructure } from '../services/api';
 
 // Modal component for showing full content
 const FullContentModal = ({ isOpen, onClose, content, title }) => {
@@ -130,6 +130,7 @@ const TableOfContents = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState({ title: '', text: '' });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const fetchTocStructure = async () => {
@@ -155,6 +156,21 @@ const TableOfContents = () => {
     setModalContent({ title: '', text: '' });
   };
 
+  const refreshTocStructure = async () => {
+    try {
+      setIsRefreshing(true);
+      // First update the TOC structure
+      await updateTocStructure();
+      // Then fetch the updated structure
+      const response = await getTocStructure();
+      setTocStructure(response.data);
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de la structure :", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-12">
       <div className="max-w-3xl mx-auto">
@@ -176,6 +192,20 @@ const TableOfContents = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Table of contents</h1>
             <p className="text-gray-500 italic">{tocStructure.length} sections</p>
+          </div>
+          <div className="ml-auto">
+            <button
+              onClick={refreshTocStructure}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {isRefreshing ? (
+                <Loader2 className="animate-spin" size={18} />
+              ) : (
+                <RotateCcw size={18} />
+              )}
+              <span className="text-sm font-medium">Refresh</span>
+            </button>
           </div>
         </div>
 

@@ -6,7 +6,7 @@ import uvicorn
 from authenticator import verify_access
 from fastapi.middleware.cors import CORSMiddleware
 from config import NAME_DB
-from data_similarity import DataSimilarity
+from data_similarity import DataSimilarity, load_toc_structure
 import logging
 
 logger = logging.getLogger("uvicorn.error")
@@ -107,7 +107,7 @@ def get_db():
 
 # GET endpoints
 @app.get("/ideas", response_model=List[IdeaItem])
-async def get_all_data(limit: int = 500) -> List[dict[Hashable, Any]]:
+async def get_all_data() -> List[dict[Hashable, Any]]:
     """Get all data items with optional limit.
     
     Args:
@@ -121,13 +121,13 @@ async def get_all_data(limit: int = 500) -> List[dict[Hashable, Any]]:
         HTTPException: If there's an error retrieving data from the database.
     """
     try:
-        data = get_data(limit)
+        data = get_data()
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving data: {str(e)}")
 
 @app.get("/ideas/tags/{tags}", response_model=List[IdeaItem])
-async def get_data_by_tags(tags: str, limit: int = 500) -> List[dict[Hashable, str]]:
+async def get_data_by_tags(tags: str) -> List[dict[Hashable, str]]:
     """Get data items by tags (semicolon separated).
     
     Args:
@@ -142,7 +142,7 @@ async def get_data_by_tags(tags: str, limit: int = 500) -> List[dict[Hashable, s
         HTTPException: If there's an error retrieving data from the database.
     """
     try:
-        data = get_data_from_tags(tags, limit)
+        data = get_data_from_tags(tags)
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving data by tags: {str(e)}")
@@ -409,12 +409,8 @@ async def health_check() -> dict[str, str]:
 
 # TOC endpoint
 @app.get("/toc/structure", response_model=list)
-async def generate_toc_structure(max_items: int = 500) -> list:
-    """Generate hierarchical table of contents structure from all data.
-    
-    Args:
-        max_items (int, optional): Maximum number of items to include in the TOC. 
-                                  Defaults to 500.
+async def get_toc_structure() -> list:
+    """Get hierarchical table of contents structure from all data.
     
     Returns:
         list: Hierarchical table of contents structure generated from all data.
@@ -422,12 +418,37 @@ async def generate_toc_structure(max_items: int = 500) -> list:
     Raises:
         HTTPException: If there's an error generating the TOC structure.
     """
+    
     try:
-        data_similarity = DataSimilarity()
-        toc = data_similarity.generate_toc_structure(max_items)
-        return toc
+        toc = None
+        toc =  load_toc_structure()
+        if toc: 
+            return toc
+        else: 
+            data_similarity = DataSimilarity()
+            return data_similarity.generate_toc_structure()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating TOC structure: {str(e)}")
+    
+@app.post("/toc/update", response_model=dict)
+async def update_toc_structure() -> dict[str, str]:
+    """Update the hierarchical table of contents structure
+    
+    Args:
+        relation (RelationItem): The relationship data containing data name and tag name.
+    
+    Returns:
+        dict[str, str]: A success message indicating the toc was updated.
+    
+    Raises:
+        HTTPException: If there's an error updating the toc.
+    """
+    try:
+        data_similarity = DataSimilarity()
+        data_similarity.generate_toc_structure()
+        return {"message": f"toc added successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating relation: {str(e)}")
 
 @app.post("/verify-otp")
 def verify_otp(request: LoginRequest) -> dict[str, str]:
