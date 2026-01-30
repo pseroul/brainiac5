@@ -235,11 +235,6 @@ async def get_similar_data_endpoint(data_name: str):
                       retrieving similar data.
     """
     try:
-        # We need to get the data item first to get its description
-        data_item = get_data_from_tags(data_name, limit=1)
-        if not data_item:
-            raise HTTPException(status_code=404, detail=f"Data item '{data_name}' not found")
-        
         # Call the original function to get similar data
         similar_data = get_similar_data(data_name)
         return similar_data

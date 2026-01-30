@@ -105,6 +105,9 @@ def get_data(limit: int = 500) -> list[dict[Hashable, Any]]:
     """
     df = pd.read_sql_query(query, conn)
     conn.close()
+    
+    # Handle potential NaN values in the dataframe
+    df = df.fillna('')
     return df.to_dict("records")
 
 def get_selected_data(subname: str) -> list[dict[Hashable, Any]]:
@@ -136,6 +139,7 @@ def get_selected_data(subname: str) -> list[dict[Hashable, Any]]:
         d.name, d.description;
     """ 
     df = pd.read_sql_query(query, conn, params=[subname])
+    df = df.fillna('')
     conn.close()
     return df.to_dict("records")
 
@@ -191,7 +195,7 @@ def get_tags_from_data(data: str):
         conn.close()
     return df['tag_name'].to_list()
 
-def get_similar_data(data: str) -> None:
+def get_similar_data(data: str) -> list[dict[str, Any]]:
     """
     Find similar data items based on semantic similarity.
     
@@ -201,14 +205,18 @@ def get_similar_data(data: str) -> None:
         data (str): Name of the data item to find similar items for
         
     Returns:
-        None: Results are returned through the ChromaClient's get_similar_data method
+        list[dict[str, Any]]: List of dictionaries containing similar data items
     """
     conn = sqlite3.connect(NAME_DB)
     query = "SELECT name, description FROM data WHERE name = (?)"
     df = pd.read_sql_query(query, conn, params=[data])
-    chroma = ChromaClient()
-    results = chroma.get_similar_data(df['name'], df['description'])
     conn.close()
+    
+    if df.empty:
+        return []
+    
+    chroma = ChromaClient()
+    results = chroma.get_similar_data(df['name'].iloc[0], df['description'].iloc[0])
     return results
 
 # ADD FUNCTIONS
