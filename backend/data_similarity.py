@@ -8,6 +8,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.feature_extraction.text import TfidfVectorizer
+from utils import unformat_text
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -93,7 +94,11 @@ class DataSimilarity:
         X = np.array(embeddings)
 
         if len(X) <= 2 or level > max_depth:
-            entries = [{"title": id, "text": doc, "type": "idea", "id": id, "originality": str(int(originality * 100)) + "%"} for doc, id, originality in zip(docs, ids, originalities)]
+            entries = [{"title": id,
+                        "text": unformat_text(id, doc),
+                        "type": "idea",
+                        "id": id,
+                        "originality": str(int(originality * 100)) + "%"} for doc, id, originality in zip(docs, ids, originalities)]
             return entries
 
         n_clusters = max(2, int(np.sqrt(len(X))))
