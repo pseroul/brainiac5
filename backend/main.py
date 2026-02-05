@@ -220,12 +220,12 @@ async def get_tags_for_data(data_name: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving tags for data: {str(e)}")
 
-@app.get("/data/{data_name}/similar", response_model=List[IdeaItem])
-async def get_similar_data_endpoint(data_name: str):
+@app.get("/ideas/similar/{idea}", response_model=List[IdeaItem])
+async def get_similar_data_endpoint(idea: str):
     """Get similar data items based on semantic similarity.
     
     Args:
-        data_name (str): The name of the data item to find similar items for.
+        idea (str): The name of the idea to find similar items for.
     
     Returns:
         List[IdeaItem]: List of similar data items based on semantic similarity.
@@ -236,10 +236,10 @@ async def get_similar_data_endpoint(data_name: str):
     """
     try:
         # Call the original function to get similar data
-        similar_data = get_similar_data(data_name)
+        similar_data = get_similar_data(idea)
         return similar_data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving similar data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving similar ideas: {str(e)}")
 
 # POST endpoints
 @app.post("/ideas", response_model=dict)

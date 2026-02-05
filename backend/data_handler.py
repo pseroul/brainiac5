@@ -192,28 +192,21 @@ def get_tags_from_data(data: str):
         conn.close()
     return df['tag_name'].to_list()
 
-def get_similar_data(data: str) -> list[dict[str, Any]]:
+def get_similar_data(idea: str) -> list[dict[str, Any]]:
     """
     Find similar data items based on semantic similarity.
     
     Uses the ChromaClient to find data items similar to the specified data item.
     
     Args:
-        data (str): Name of the data item to find similar items for
+        idea (str): Name of the idea to find similar items for
         
     Returns:
         list[dict[str, Any]]: List of dictionaries containing similar data items
     """
-    conn = sqlite3.connect(NAME_DB)
-    query = "SELECT name, description FROM data WHERE name = (?)"
-    df = pd.read_sql_query(query, conn, params=[data])
-    conn.close()
-    
-    if df.empty:
-        return []
-    
+    logger.info(f"data_handler:get_similar_data({idea})")
     chroma = ChromaClient()
-    results = chroma.get_similar_data(df['name'].iloc[0], df['description'].iloc[0])
+    results = chroma.get_similar_idea(idea)
     return results
 
 # ADD FUNCTIONS

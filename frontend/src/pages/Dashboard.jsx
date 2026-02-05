@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Plus, Search, Trash2, Edit3, Loader2 } from 'lucide-react';
-import { getIdeas, createIdea, deleteIdea, updateIdea, createRelation, createTag } from '../services/api';
+import { LogOut, Plus, Search, Trash2, Edit3, Loader2, Lightbulb } from 'lucide-react';
+import { getIdeas, createIdea, deleteIdea, updateIdea, createRelation, createTag, getSimilarIdeas } from '../services/api';
 import IdeaModal from '../components/IdeaModal';
 
 const Dashboard = () => {
@@ -10,6 +10,9 @@ const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [editingIdea, setEditingIdea] = useState(null);
+  const [similarIdeas, setSimilarIdeas] = useState([]);
+  const [isSearchingSimilar, setIsSearchingSimilar] = useState(false);
+  const [showSimilarResults, setShowSimilarResults] = useState(false);
 
   // Charger les idées au démarrage
   useEffect(() => {
@@ -25,6 +28,23 @@ const Dashboard = () => {
       console.error("Erreur lors de la récupération :", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchSimilarIdeas = async (term) => {
+    if (!term.trim()) return;
+    
+    try {
+      setIsSearchingSimilar(true);
+      const response = await getSimilarIdeas(term);
+      setSimilarIdeas(response.data);
+      setShowSimilarResults(true);
+    } catch (error) {
+      console.error("Erreur lors de la récupération des idées similaires :", error);
+      setSimilarIdeas([]);
+      setShowSimilarResults(true);
+    } finally {
+      setIsSearchingSimilar(false);
     }
   };
 
@@ -55,13 +75,14 @@ if (window.confirm("Supprimer cette idée ?")) {
 };
 
   // Filtrage des idées en fonction de la recherche
-const filteredIdeas = ideas.filter(idea => {
-  const name = idea.name ? idea.name.toLowerCase() : "";
-  const description = idea.description ? idea.description.toLowerCase() : "";
-  const search = searchTerm.toLowerCase();
-
-  return name.includes(search) || description.includes(search);
-});
+  const filteredIdeas = showSimilarResults 
+    ? similarIdeas // Afficher uniquement les idées similaires quand le bouton "Similar" est cliqué
+    : ideas.filter(idea => {
+        const name = idea.name ? idea.name.toLowerCase() : "";
+        const description = idea.description ? idea.description.toLowerCase() : "";
+        const search = searchTerm.toLowerCase();
+        return name.includes(search) || description.includes(search);
+      });
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -78,9 +99,27 @@ const filteredIdeas = ideas.filter(idea => {
               type="text"
               placeholder="Search..."
               className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                if (showSimilarResults) {
+                  setShowSimilarResults(false);
+                }
+              }}
             />
           </div>
+          {/* Similar ideas button */}
+          <button 
+            onClick={() => fetchSimilarIdeas(searchTerm)}
+            disabled={!searchTerm.trim() || isSearchingSimilar}
+            className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white p-2 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            {isSearchingSimilar ? (
+              <Loader2 className="animate-spin" size={20} />
+            ) : (
+              <Lightbulb size={20} />
+            )}
+            <span className="hidden md:inline">Similar</span>
+          </button>
           {/* New idea */}
           <button 
             onClick={() => { setEditingIdea(null); setIsModalOpen(true); }}

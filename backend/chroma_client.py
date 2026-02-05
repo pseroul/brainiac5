@@ -3,6 +3,9 @@ import chromadb
 from chromadb.utils import embedding_functions
 from config import CHROMA_DB
 import utils
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 class ChromaClient:
     """
@@ -76,7 +79,7 @@ class ChromaClient:
         """
         self.collection.delete(ids=[name])
         
-    def get_similar_data(self, name: str, description: str, n_results: int = 10) -> list[dict[str, str]]:
+    def get_similar_idea(self, idea: str, n_results: int = 10) -> list[dict[str, str]]:
         """
         Find similar data items based on semantic similarity.
         
@@ -84,8 +87,7 @@ class ChromaClient:
         data items similar to the provided query.
         
         Args:
-            name (str): The name/title of the query item
-            description (str): The description/content of the query item
+            name (str): The name/title of the idea
             n_results (int, optional): Number of similar results to return.
                 Defaults to 10.
                 
@@ -93,12 +95,12 @@ class ChromaClient:
             list[dict[str, str]]: List of dictionaries containing 'name' and 'description'
                 of similar data items
         """
-        if n_results == 0:
-            return []
+        
         results = self.collection.query(
-            query_texts=[utils.format_text(name, description)],
+            query_texts=[idea],
             n_results=n_results
         )
+        logger.info(f"chroma_client:get_similar_data({idea}) ->\n {results}")
         names: list[str] = results["ids"][0]
         descriptions: list[str] = results['documents'][0]
         return [{'name': name, 'description': utils.unformat_text(name, desc)} for name, desc in zip(names, descriptions)]

@@ -16,7 +16,7 @@ export const updateTocStructure = () => api.post('/toc/update');
 
 export const getTags = () => api.get('/tags');
 export const getIdeasTags = (idea) => api.get(`/ideas/${idea}/tags`);
-export const getSimilarIdeas = (idea) => api.get(`/ideas/${idea}/similar`);
+export const getSimilarIdeas = (idea) => api.get(`/ideas/similar/${idea}`);
 
 export const createIdea = (idea) => api.post('/ideas', idea);
 export const createTag = (tag) => api.post('/tags', tag);
