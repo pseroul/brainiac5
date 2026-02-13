@@ -1,7 +1,7 @@
 
 import chromadb
 from chromadb.utils import embedding_functions
-from config import CHROMA_DB
+import os
 import utils
 import logging
 
@@ -27,31 +27,31 @@ class ChromaClient:
 
         self.model_name = "all-distilroberta-v1"
 
-        self.client = chromadb.PersistentClient(path=CHROMA_DB)
+        self.client = chromadb.PersistentClient(path=os.getenv('CHROMA_DB'))
         self.emb_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=self.model_name)
         self.collection = self.client.get_or_create_collection(
             name=collection_name,
             embedding_function=self.emb_fn
         )
 
-    def insert_data(self, name: str, description: str) -> None:
+    def insert_idea(self, title: str, content: str) -> None:
         """
         Insert new data into the embedding database.
         
         Adds a new document to the ChromaDB collection with the provided
-        name and description, formatted appropriately for embedding.
+        name and content, formatted appropriately for embedding.
         
         Args:
-            name (str): The name/title of the data item to insert
-            description (str): The description/content of the data item to insert
+            title (str): The title of the idea to insert
+            content (str): The content of the idea to insert
         """
         self.collection.add(
-            documents=[utils.format_text(name, description)],
-            metadatas=[{"name": name}],
-            ids=[name]
+            documents=[utils.format_text(title, content)],
+            metadatas=[{"title": title}],
+            ids=[title]
         )
 
-    def update_data(self, name: str, description: str) -> None:
+    def update_idea(self, title: str, content: str) -> None:
         """
         Update existing data in the embedding database.
         
@@ -59,25 +59,25 @@ class ChromaClient:
         content while preserving the existing ID.
         
         Args:
-            name (str): The name/title of the data item to update
-            description (str): The new description/content for the data item
+            title (str): The name/title of the idea to update
+            content (str): The new content for the idea
         """
         self.collection.update(
-            documents=[utils.format_text(name, description)],
-            metadatas=[{"name": name}],
-            ids=[name]
+            documents=[utils.format_text(title, content)],
+            metadatas=[{"title": title}],
+            ids=[title]
         )
         
-    def remove_data(self, name: str) -> None:
+    def remove_idea(self, title: str) -> None:
         """
         Remove data from the embedding database.
         
         Deletes a document from the ChromaDB collection based on its ID.
         
         Args:
-            name (str): The name/title of the data item to remove
+            title: str: The id of the idea to remove
         """
-        self.collection.delete(ids=[name])
+        self.collection.delete(ids=[title])
         
     def get_similar_idea(self, idea: str, n_results: int = 10) -> list[dict[str, str]]:
         """
@@ -92,7 +92,7 @@ class ChromaClient:
                 Defaults to 10.
                 
         Returns:
-            list[dict[str, str]]: List of dictionaries containing 'name' and 'description'
+            list[dict[str, str]]: List of dictionaries containing 'title' and 'content'
                 of similar data items
         """
         
@@ -101,13 +101,12 @@ class ChromaClient:
             n_results=n_results
         )
         logger.info(f"chroma_client:get_similar_data({idea}) ->\n {results}")
-        names: list[str] = results["ids"][0]
-        descriptions: list[str] = results['documents'][0]
-        return [{'name': name, 'description': utils.unformat_text(name, desc)} for name, desc in zip(names, descriptions)]
+        titles: list[str] = results["ids"][0]
+        return titles
 
-    def get_all_data(self, max_items: int = 500) -> chromadb.GetResult:
+    def get_all_ideas(self, max_items: int = 500) -> chromadb.GetResult:
         """
-        Retrieve all data from the embedding database.
+        Retrieve all ideas from the embedding database.
         
         Gets all documents, embeddings, and metadata from the ChromaDB collection.
         

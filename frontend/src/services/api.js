@@ -22,11 +22,11 @@ export const createIdea = (idea) => api.post('/ideas', idea);
 export const createTag = (tag) => api.post('/tags', tag);
 export const createRelation = (relation) => api.post('/relations', relation);
 
-export const updateIdea = (name, idea) => api.put(`/ideas/${encodeURIComponent(name)}`, idea);
+export const updateIdea = (id, idea) => api.put(`/ideas/${id}`, idea);
 
-export const deleteIdea = (name) => api.delete(`/ideas/${name}`);
+export const deleteIdea = (id, ideaData) => api.delete(`/ideas/${id}`, { data: ideaData });
 export const deleteTag = (name) => api.delete(`/tags/${name}`);
-export const deleteRelation = (name) => api.delete(`/relations/${name}`);
+export const deleteRelation = (relation) => api.delete(`/relations`, { data: relation });
 
 export const verifyOtp = (credentials) => api.post('/verify-otp', credentials);
 

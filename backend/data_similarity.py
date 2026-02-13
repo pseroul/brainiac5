@@ -11,7 +11,6 @@ from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.feature_extraction.text import TfidfVectorizer
 from utils import unformat_text
-from config import TOC_CACHE_PATH
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -33,7 +32,7 @@ def save_toc_structure(structure) -> None:
         """
         try:
             # Save the raw structure data (which is JSON serializable)
-            with open(TOC_CACHE_PATH, 'w') as f:
+            with open(os.getenv('TOC_CACHE_PATH'), 'w') as f:
                 json.dump(structure, f)
         except Exception as e:
             logger.error(f"Error saving TOC structure: {e}")
@@ -50,8 +49,8 @@ def load_toc_structure():
             or None if no cache exists or if there was an error loading it.
     """
     try:
-        if os.path.exists(TOC_CACHE_PATH):
-            with open(TOC_CACHE_PATH, 'r') as f:
+        if os.path.exists(os.getenv('TOC_CACHE_PATH')):
+            with open(os.getenv('TOC_CACHE_PATH'), 'r') as f:
                 return json.load(f)
     except Exception as e:
         logger.error(f"Error loading TOC structure: {e}")
@@ -74,7 +73,7 @@ class DataSimilarity:
         """
         # Stream data in chunks to limit memory usage
         client = ChromaClient()
-        data = client.get_all_data()
+        data = client.get_all_ideas()
         logger.debug("generate originality score")
         originalities = self.generate_originality_score(data['embeddings'])
         

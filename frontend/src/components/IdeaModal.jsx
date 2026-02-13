@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { X, Tag } from 'lucide-react'; // Vérifie bien que 'Tag' est ici
 
 const IdeaModal = ({ isOpen, onClose, onSave, initialData }) => {
-  const [formData, setFormData] = useState({ name: '', description: '' });
+  const [formData, setFormData] = useState({ title: '', content: '' });
   const [currentTag, setCurrentTag] = useState('');
   const [tags, setTags] = useState([]);
 
   useEffect(() => {
     if (initialData) {
-      setFormData({ name: initialData.name || '', description: initialData.description || '' });
+      setFormData({ title: initialData.title || '', content: initialData.content || '' });
       // Handle tags - if tags is a string (semicolon-separated), split it into array
       if (initialData.tags && typeof initialData.tags === 'string') {
         setTags(initialData.tags.split(';').filter(tag => tag.trim() !== ''));
@@ -18,7 +18,7 @@ const IdeaModal = ({ isOpen, onClose, onSave, initialData }) => {
         setTags([]);
       }
     } else {
-      setFormData({ name: '', description: '' });
+      setFormData({ title: '', content: '' });
       setTags([]);
     }
   }, [initialData, isOpen]);
@@ -40,8 +40,8 @@ const IdeaModal = ({ isOpen, onClose, onSave, initialData }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const dataToSave = {
-      name: formData.name,
-      description: formData.description,
+      title: formData.title,
+      content: formData.content,
       tags: tags.length > 0 ? tags.join(';') : "" // Send as semicolon-separated string
     };
 
@@ -64,30 +64,30 @@ const IdeaModal = ({ isOpen, onClose, onSave, initialData }) => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Titre de l'idée</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Title</label>
             <input 
               required
               className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-gray-50 text-black"
-              placeholder="Ex: Intelligence Artificielle"
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              placeholder="Artificial Intelligence"
+              value={formData.title}
+              onChange={(e) => setFormData({...formData, title: e.target.value})}
             />
           </div>
           
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Content</label>
             <textarea 
               required
               rows="4"
               className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-gray-50 resize-none text-black"
-              placeholder="Décrivez votre idée..."
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              placeholder="Describe your idea..."
+              value={formData.content}
+              onChange={(e) => setFormData({...formData, content: e.target.value})}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Tags (Appuyez sur Entrée)</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Tags (Press Enter)</label>
             <div className="flex flex-wrap gap-2 mb-2">
               {tags.map((tag, index) => (
                 <span key={index} className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded-lg text-sm font-medium">
@@ -116,13 +116,13 @@ const IdeaModal = ({ isOpen, onClose, onSave, initialData }) => {
               onClick={onClose} 
               className="flex-1 py-3 text-gray-600 font-bold hover:bg-gray-100 rounded-xl transition-colors"
             >
-              Annuler
+              Cancel
             </button>
             <button 
               type="submit"
               className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
             >
-              {initialData ? 'Mettre à jour' : 'Enregistrer'}
+              {initialData ? 'Update' : 'Save'}
             </button>
           </div>
         </form>

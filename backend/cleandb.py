@@ -1,9 +1,9 @@
 import sqlite3
 import logging
-from config import NAME_DB
+
 
 def clean_database() -> None:
-    conn = sqlite3.connect(NAME_DB)
+    conn = sqlite3.connect(os.getenv('NAME_DB'))
     cursor = conn.cursor()
 
     try:

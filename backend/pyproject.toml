@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+addopts = "--cov=. --cov-report=term-missing --cov-fail-under=80"
+
+[tool.ruff]
+select = ["E", "F", "B", "S"] # Error, Pyflakes, Bugbear, Bandit (Sécurité)
+fix = true
+
+[tool.vulture]
+min_confidence = 80
+paths = ["."]

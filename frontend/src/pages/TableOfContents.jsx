@@ -3,7 +3,15 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen, ChevronRight, Loader2, X, RotateCcw } from 'lucide-react';
 import { getTocStructure, updateTocStructure } from '../services/api';
 
-// Modal component for showing full content
+/**
+ * Modal component for displaying full content of TOC items
+ * @param {Object} props - Component props
+ * @param {boolean} props.isOpen - Whether modal is visible
+ * @param {Function} props.onClose - Function to close modal
+ * @param {string} props.content - Full content to display
+ * @param {string} props.title - Title of the content
+ * @returns {JSX.Element|null} Modal component or null
+ */
 const FullContentModal = ({ isOpen, onClose, content, title }) => {
   if (!isOpen) return null;
 
@@ -16,6 +24,7 @@ const FullContentModal = ({ isOpen, onClose, content, title }) => {
             onClick={onClose} 
             type="button" 
             className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            aria-label="Close modal"
           >
             <X size={24} className="text-gray-400" />
           </button>
@@ -29,6 +38,7 @@ const FullContentModal = ({ isOpen, onClose, content, title }) => {
           <button 
             onClick={onClose}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            aria-label="Close"
           >
             Close
           </button>
@@ -38,7 +48,14 @@ const FullContentModal = ({ isOpen, onClose, content, title }) => {
   );
 };
 
-// Recursive component to render hierarchical structure
+/**
+ * Recursive component to render hierarchical table of contents structure
+ * @param {Object} props - Component props
+ * @param {Object} props.item - Current TOC item to render
+ * @param {number} props.level - Nesting level for indentation
+ * @param {Function} props.onShowFullContent - Callback to show full content
+ * @returns {JSX.Element} Rendered TOC item
+ */
 const TocItem = ({ item, level = 1, onShowFullContent }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   
@@ -50,6 +67,10 @@ const TocItem = ({ item, level = 1, onShowFullContent }) => {
         <div 
           className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer"
           onClick={() => setIsExpanded(!isExpanded)}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isExpanded}
+          aria-label={`Toggle ${item.title} section`}
         >
           <div className="flex items-center gap-4">
             <span className="text-sm font-mono text-gray-400 w-6">
@@ -61,7 +82,7 @@ const TocItem = ({ item, level = 1, onShowFullContent }) => {
               </span>
               {item.originality && (
                 <span className="text-xs text-gray-500 ml-2 block">
-                  Originality:{item.originality}
+                  Originality: {item.originality}
                 </span>
               )}
               {hasChildren && (
@@ -77,6 +98,7 @@ const TocItem = ({ item, level = 1, onShowFullContent }) => {
               className={`text-gray-300 group-hover:text-blue-400 transition-transform ${
                 isExpanded ? 'rotate-90' : ''
               }`} 
+              aria-hidden="true"
             />
           )}
         </div>
@@ -100,6 +122,9 @@ const TocItem = ({ item, level = 1, onShowFullContent }) => {
       <div 
         className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer border-b border-gray-50 last:border-0"
         onClick={() => onShowFullContent(item.title, item.text)}
+        role="button"
+        tabIndex={0}
+        aria-label={`View details for ${item.title}`}
       >
         <div className="flex items-center gap-4">
           <span className="text-sm font-mono text-gray-400 w-6">
@@ -115,76 +140,125 @@ const TocItem = ({ item, level = 1, onShowFullContent }) => {
               </p>
             )}
             <span className="text-xs text-gray-500 mt-1 block">
-              Originality:{item.originality}
+              Originality: {item.originality}
             </span>
           </div>
         </div>
-        <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400" />
+        <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400" aria-hidden="true" />
       </div>
     );
   }
 };
 
+/**
+ * Table of Contents Component - Displays hierarchical structure of content
+ * 
+ * This component provides:
+ * - Hierarchical navigation of content sections
+ * - Ability to view full content in a modal
+ * - Refresh functionality to update content structure
+ * - Responsive design for all screen sizes
+ * - Accessible UI components
+ * 
+ * Features:
+ * - Collapsible sections
+ * - Loading states
+ * - Error handling
+ * - Full content preview
+ * - Content refresh capability
+ */
 const TableOfContents = () => {
+  // State management for component data
   const [tocStructure, setTocStructure] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState({ title: '', text: '' });
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchTocStructure = async () => {
-      try {
-        const response = await getTocStructure();
-        setTocStructure(response.data);
-      } catch (error) {
-        console.error("Erreur lors de la récupération de la structure :", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchTocStructure();
-  }, []);
+  /**
+   * Fetch the table of contents structure from the API
+   * @async
+   * @returns {Promise<void>}
+   */
+  const fetchTocStructure = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await getTocStructure();
+      setTocStructure(response.data);
+    } catch (err) {
+      console.error('Error fetching TOC structure:', err);
+      setError('Failed to load table of contents. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  /**
+   * Handle showing full content in modal
+   * @param {string} title - Title of the content
+   * @param {string} text - Full text content
+   * @returns {void}
+   */
   const handleShowFullContent = (title, text) => {
     setModalContent({ title, text });
     setShowModal(true);
   };
 
+  /**
+   * Close the modal and reset content
+   * @returns {void}
+   */
   const handleCloseModal = () => {
     setShowModal(false);
     setModalContent({ title: '', text: '' });
   };
 
+  /**
+   * Refresh the table of contents structure
+   * @async
+   * @returns {Promise<void>}
+   */
   const refreshTocStructure = async () => {
     try {
       setIsRefreshing(true);
+      setError(null);
+      
       // First update the TOC structure
       await updateTocStructure();
+      
       // Then fetch the updated structure
       const response = await getTocStructure();
       setTocStructure(response.data);
-    } catch (error) {
-      console.error("Erreur lors de la mise à jour de la structure :", error);
+    } catch (err) {
+      console.error('Error refreshing TOC structure:', err);
+      setError('Failed to refresh table of contents. Please try again.');
     } finally {
       setIsRefreshing(false);
     }
   };
 
+  // Load TOC structure when component mounts
+  useEffect(() => {
+    fetchTocStructure();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-12">
       <div className="max-w-3xl mx-auto">
         
-        {/* Navigation de retour */}
+        {/* Navigation back to dashboard */}
         <Link 
           to="/dashboard" 
           className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-colors mb-8 group"
+          aria-label="Back to dashboard"
         >
           <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
           <span>Back to Dashboard</span>
         </Link>
 
-        {/* Titre de la page */}
+        {/* Page header */}
         <div className="flex items-center gap-4 mb-12 border-b border-gray-100 pb-6">
           <div className="bg-blue-50 p-3 rounded-full text-blue-600">
             <BookOpen size={28} />
@@ -198,6 +272,7 @@ const TableOfContents = () => {
               onClick={refreshTocStructure}
               disabled={isRefreshing}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+              aria-label={isRefreshing ? "Refreshing..." : "Refresh content"}
             >
               {isRefreshing ? (
                 <Loader2 className="animate-spin" size={18} />
@@ -209,7 +284,13 @@ const TableOfContents = () => {
           </div>
         </div>
 
-        {/* Liste des idées */}
+        {/* Content display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
+
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="animate-spin text-blue-600" size={32} />
@@ -226,7 +307,7 @@ const TableOfContents = () => {
                 />
               ))
             ) : (
-              <p className="text-center text-gray-400 py-10">No ideas for now.</p>
+              <p className="text-center text-gray-400 py-10">No content available at this time.</p>
             )}
           </div>
         )}
