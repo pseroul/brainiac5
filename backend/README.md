@@ -41,6 +41,21 @@ python main.py
    - Swagger UI: `http://localhost:8000/docs`
    - ReDoc: `http://localhost:8000/redoc`
 
+## site configuration
+In order to access your fastapi, you need to defined where it is available from. 
+Create a ```site.json``` file in *backend/data* and past the following information: 
+```
+{
+    "origins" : [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://[your_site].com",
+    "http://[your_site].com"
+   ]
+}
+```
+where localhost are used for direct access (aka for debuging) and your site is the domain you use in production.
+
 ## Database
 
 The application uses SQLite with the database file located at `data/knowledge.db`. The database schema includes:

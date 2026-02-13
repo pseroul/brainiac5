@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import set_env_var
 from data_similarity import DataSimilarity, load_toc_structure
 import logging
+import os
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -17,25 +18,7 @@ from data_handler import (
     add_relation, remove_idea, remove_tag, remove_relation, update_idea, get_similar_idea
 )
 
-
-app = FastAPI(title="Data Management API", description="API for managing data and tags with SQLite")
-
-# Add CORS middleware
-# Explicitly allow only trusted origins
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://pierreseroul.com",
-    "http://pierreseroul.com",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI(title="Idea Management API", description="API for managing ideas and tags with SQLite")
 
 # Pydantic models
 class IdeaItem(BaseModel):
@@ -93,7 +76,8 @@ def get_db():
     Yields:
         sqlite3.Connection: A SQLite database connection object.
     """
-    conn = sqlite3.connect(NAME_DB)
+    db_path = os.environ.get('NAME_DB', 'data/knowledge.db')
+    conn = sqlite3.connect(db_path)
     yield conn
     conn.close()
 
@@ -485,5 +469,17 @@ if __name__ == "__main__":
     # Initialize the database
     set_env_var()
     init_database()
+
+    # Add CORS middleware
+    # Explicitly allow only trusted origins
+    origins = os.environ.get('ALLOWED_ORIGINS', '').split(',')
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     
     uvicorn.run(app, host="0.0.0.0", port=8000)
