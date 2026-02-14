@@ -75,9 +75,3 @@ Simply run the following script:
 ```bash
 python data_handler.py -e
 ```
-
-### Clean database
-If you want to remove space at the beginning or the end of idea and tags, run the following command: 
-```bash
-python cleandb.py
-```

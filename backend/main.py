@@ -7,6 +7,7 @@ from authenticator import verify_access
 from fastapi.middleware.cors import CORSMiddleware
 from config import set_env_var
 from data_similarity import DataSimilarity, load_toc_structure
+from contextlib import asynccontextmanager
 import logging
 import os
 
@@ -18,7 +19,23 @@ from data_handler import (
     add_relation, remove_idea, remove_tag, remove_relation, update_idea, get_similar_idea
 )
 
+# Initialisation of the database and variable
+set_env_var()
+init_database()
+
+# Add CORS middleware
+# Explicitly allow only trusted origins
+origins = os.environ.get('ALLOWED_ORIGINS', '').split(',')
+
 app = FastAPI(title="Idea Management API", description="API for managing ideas and tags with SQLite")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+    
 
 # Pydantic models
 class IdeaItem(BaseModel):
@@ -466,9 +483,8 @@ def verify_otp(request: LoginRequest) -> dict[str, str]:
         raise HTTPException(status_code=401, detail="Invalid or expired code")
 
 if __name__ == "__main__":
-    # Initialize the database
     set_env_var()
-    init_database()
+    
 
     # Add CORS middleware
     # Explicitly allow only trusted origins

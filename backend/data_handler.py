@@ -6,6 +6,7 @@ import os
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 import logging
+from config import set_env_var
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -122,38 +123,6 @@ def get_ideas() -> list[dict[Hashable, Any]]:
     
     # Handle potential NaN values in the dataframe
     df = df.fillna('')
-    return df.to_dict("records")
-    """
-    Retrieve ideas matching a partial name search.
-    
-    Searches for ideas whose names contain the specified substring.
-    
-    Args:
-        subname (str): Substring to search for in idea names
-        
-    Returns:
-        list[dict[Hashable, Any]]: List of dictionaries containing matching ideas
-    """
-    subname = "%" + subname + "%"
-    conn = sqlite3.connect(os.getenv('NAME_DB'))
-    query = """
-    SELECT 
-        i.id, 
-        i.title, 
-        i.content, 
-        GROUP_CONCAT(r.tag_name, ';') AS tags
-    FROM 
-        ideas i
-    WHERE 
-        i.title LIKE (?)
-    LEFT JOIN 
-        relations r ON i.id = r.idea_id
-    GROUP BY 
-        i.id, i.title, i.content;
-    """ 
-    df = pd.read_sql_query(query, conn, params=[subname])
-    df = df.fillna('')
-    conn.close()
     return df.to_dict("records")
 
 def get_content(idea_id: int) -> str:
@@ -492,6 +461,7 @@ def embed_all_ideas() -> None:
         # Process all ideas
         total_items = len(ideas)
         logger.info(f"Regenerating embeddings for {total_items} ideas...")
+        print(f"Regenerating embeddings for {total_items} ideas...")
         
         for i, item in enumerate(ideas, 1):
             try:
@@ -510,5 +480,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Regenerate all embeddings')
     parser.add_argument('-e', '--embedding', help='regenerate embeddings for chromadb', action="store_true")
     args = parser.parse_args()
+    set_env_var()
     if args.embedding: 
         embed_all_ideas()
