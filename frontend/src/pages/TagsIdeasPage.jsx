@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, BookOpen, ChevronRight, Loader2, X, RotateCcw } from 'lucide-react';
-import { getTags, getIdeasFromTags } from '../services/api';
+import { ArrowLeft, BookOpen, ChevronRight, Loader2, X, RotateCcw, Trash2 } from 'lucide-react';
+import { getTags, getIdeasFromTags, deleteTag } from '../services/api';
 
 /**
  * Modal component for displaying full content of tags and ideas
@@ -49,6 +49,58 @@ const FullContentModal = ({ isOpen, onClose, content, title }) => {
 };
 
 /**
+ * Modal component for deletion confirmation
+ * @param {Object} props - Component props
+ * @param {boolean} props.isOpen - Whether modal is visible
+ * @param {Function} props.onClose - Function to close modal
+ * @param {Function} props.onConfirm - Function to execute on confirmation
+ * @param {string} props.itemName - Name of the item to delete
+ * @returns {JSX.Element|null} Modal component or null
+ */
+const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, itemName }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black bg-opacity-70">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-gray-100">
+        <div className="flex justify-between items-start mb-4">
+          <h2 className="text-xl font-bold text-gray-900">Confirm Deletion</h2>
+          <button 
+            onClick={onClose} 
+            type="button" 
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors" 
+            aria-label="Close modal"
+          >
+            <X size={24} className="text-gray-400" />
+          </button>
+        </div>
+        <div className="mb-6">
+          <p className="text-gray-700">
+            Are you sure you want to delete the tag "{itemName}"? This action cannot be undone.
+          </p>
+        </div>
+        <div className="mt-6 flex justify-end gap-3">
+          <button 
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+            aria-label="Cancel"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={onConfirm}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            aria-label="Confirm deletion"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
  * Recursive component to render hierarchical tags and ideas structure
  * @param {Object} props - Component props
  * @param {Object} props.item - Current tag or idea to render
@@ -56,7 +108,7 @@ const FullContentModal = ({ isOpen, onClose, content, title }) => {
  * @param {Function} props.onShowFullContent - Callback to show full content
  * @returns {JSX.Element} Rendered tag or idea
  */
-const TagItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
+const TagItem = ({ item, level = 1, onShowFullContent, allCollapsed, onDeleteTag }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   
   const hasIdeas = item.ideas && item.ideas.length > 0;
@@ -109,6 +161,7 @@ const TagItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
                 level={level + 1} 
                 onShowFullContent={onShowFullContent}
                 allCollapsed={allCollapsed}
+                onDeleteTag={onDeleteTag}
               />
             ))}
           </div>
@@ -148,7 +201,7 @@ const TagItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
         </div>
       );
     } else {
-      // This is a tag without ideas - just display it without modal functionality
+      // This is a tag without ideas - display it with delete button
       return (
         <div 
           className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer border-b border-gray-50 last:border-0"
@@ -166,7 +219,19 @@ const TagItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
               </span>
             </div>
           </div>
-          <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400" aria-hidden="true" />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteTag(item.name);
+              }}
+              className="p-1 hover:bg-red-50 rounded-full transition-colors"
+              aria-label={`Delete tag ${item.name}`}
+            >
+              <Trash2 size={18} className="text-red-500" />
+            </button>
+            <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400" aria-hidden="true" />
+          </div>
         </div>
       );
     }
@@ -199,6 +264,9 @@ const TagsIdeasPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [allCollapsed, setAllCollapsed] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [tagToDelete, setTagToDelete] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   /**
    * Fetch tags and their associated ideas from the API
@@ -288,6 +356,47 @@ const TagsIdeasPage = () => {
     setAllCollapsed(!allCollapsed);
   };
 
+  /**
+   * Handle tag deletion
+   * @param {string} tagName - Name of the tag to delete
+   * @returns {void}
+   */
+  const handleDeleteTag = (tagName) => {
+    setTagToDelete(tagName);
+    setShowDeleteModal(true);
+  };
+
+  /**
+   * Confirm tag deletion and call API
+   * @async
+   * @returns {Promise<void>}
+   */
+  const confirmDeleteTag = async () => {
+    try {
+      setIsDeleting(true);
+      setError(null);
+      await deleteTag(tagToDelete);
+      // Refresh the tags list after deletion
+      await fetchTagsAndIdeas();
+      setShowDeleteModal(false);
+      setTagToDelete('');
+    } catch (err) {
+      console.error('Error deleting tag:', err);
+      setError('Failed to delete tag. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  /**
+   * Close delete confirmation modal
+   * @returns {void}
+   */
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setTagToDelete('');
+  };
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-12">
       <div className="max-w-3xl mx-auto">
@@ -359,6 +468,7 @@ const TagsIdeasPage = () => {
                   level={1} 
                   onShowFullContent={handleShowFullContent}
                   allCollapsed={allCollapsed}
+                  onDeleteTag={handleDeleteTag}
                 />
               ))
             ) : (
@@ -374,6 +484,14 @@ const TagsIdeasPage = () => {
         onClose={handleCloseModal}
         content={modalContent.text}
         title={modalContent.title}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal 
+        isOpen={showDeleteModal}
+        onClose={closeDeleteModal}
+        onConfirm={confirmDeleteTag}
+        itemName={tagToDelete}
       />
     </div>
   );
