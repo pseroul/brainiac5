@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Tag } from 'lucide-react'; // Vérifie bien que 'Tag' est ici
+import { X, Tag, Loader2 } from 'lucide-react'; // Vérifie bien que 'Tag' est ici
 
 const IdeaModal = ({ isOpen, onClose, onSave, initialData }) => {
   const [formData, setFormData] = useState({ title: '', content: '' });
   const [currentTag, setCurrentTag] = useState('');
   const [tags, setTags] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -39,6 +40,7 @@ const IdeaModal = ({ isOpen, onClose, onSave, initialData }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setIsSaving(true);
     const dataToSave = {
       title: formData.title,
       content: formData.content,
@@ -120,9 +122,17 @@ const IdeaModal = ({ isOpen, onClose, onSave, initialData }) => {
             </button>
             <button 
               type="submit"
-              className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+              disabled={isSaving}
+              className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95 disabled:opacity-80 disabled:cursor-wait"
             >
-              {initialData ? 'Update' : 'Save'}
+              {isSaving ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="animate-spin" size={18} />
+                  <span>Saving...</span>
+                </span>
+              ) : (
+                initialData ? 'Update' : 'Save'
+              )}
             </button>
           </div>
         </form>
