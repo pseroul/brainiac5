@@ -7,7 +7,6 @@ from authenticator import verify_access
 from fastapi.middleware.cors import CORSMiddleware
 from config import set_env_var
 from data_similarity import DataSimilarity, load_toc_structure
-from contextlib import asynccontextmanager
 import logging
 import os
 
@@ -483,19 +482,5 @@ def verify_otp(request: LoginRequest) -> dict[str, str]:
         raise HTTPException(status_code=401, detail="Invalid or expired code")
 
 if __name__ == "__main__":
-    set_env_var()
-    
-
-    # Add CORS middleware
-    # Explicitly allow only trusted origins
-    origins = os.environ.get('ALLOWED_ORIGINS', '').split(',')
-
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-    
+        
     uvicorn.run(app, host="0.0.0.0", port=8000)

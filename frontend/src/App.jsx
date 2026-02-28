@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import TableOfContents from './pages/TableOfContents';
+import TagsIdeasPage from './pages/TagsIdeasPage';
 import Navbar from './components/Navbar';
 
 const ProtectedRoute = ({ children }) => {
@@ -39,6 +40,15 @@ function App() {
               element={
                 <ProtectedRoute>
                   <TableOfContents />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/tags-ideas" 
+              element={
+                <ProtectedRoute>
+                  <TagsIdeasPage />
                 </ProtectedRoute>
               } 
             />

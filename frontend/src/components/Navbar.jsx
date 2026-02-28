@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, X, LogOut, Lightbulb, Home, Settings, User } from 'lucide-react';
+import { Menu, X, LogOut, Lightbulb, Home, Settings, User, Tag } from 'lucide-react';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,7 +21,7 @@ const Navbar = () => {
         {/* Logo / Titre */}
         <div className="flex items-center gap-2 font-bold text-blue-600">
           <Lightbulb size={24} />
-          <span>Cerebro</span>
+          <span>Consensia</span>
         </div>
 
         {/* Bouton Menu (Burger) */}
@@ -51,6 +51,14 @@ const Navbar = () => {
               className="flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-gray-700 hover:text-blue-600 font-medium transition-all"
             >
               <User size={20} /> Table of contents
+            </Link>
+
+            <Link 
+              to="/tags-ideas" 
+              onClick={toggleMenu}
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-gray-700 hover:text-blue-600 font-medium transition-all"
+            >
+              <Tag size={20} /> Tags & Ideas
             </Link>
 
             <hr className="my-2 border-gray-100" />

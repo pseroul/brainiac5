@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen, ChevronRight, Loader2, X, RotateCcw } from 'lucide-react';
-import { getTocStructure, updateTocStructure } from '../services/api';
+import { getTags, getIdeasFromTags } from '../services/api';
 
 /**
- * Modal component for displaying full content of TOC items
+ * Modal component for displaying full content of tags and ideas
  * @param {Object} props - Component props
  * @param {boolean} props.isOpen - Whether modal is visible
  * @param {Function} props.onClose - Function to close modal
@@ -23,7 +23,7 @@ const FullContentModal = ({ isOpen, onClose, content, title }) => {
           <button 
             onClick={onClose} 
             type="button" 
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors" 
             aria-label="Close modal"
           >
             <X size={24} className="text-gray-400" />
@@ -49,24 +49,22 @@ const FullContentModal = ({ isOpen, onClose, content, title }) => {
 };
 
 /**
- * Recursive component to render hierarchical table of contents structure
+ * Recursive component to render hierarchical tags and ideas structure
  * @param {Object} props - Component props
- * @param {Object} props.item - Current TOC item to render
+ * @param {Object} props.item - Current tag or idea to render
  * @param {number} props.level - Nesting level for indentation
  * @param {Function} props.onShowFullContent - Callback to show full content
- * @returns {JSX.Element} Rendered TOC item
+ * @returns {JSX.Element} Rendered tag or idea
  */
-const TocItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
+const TagItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   
-  const hasChildren = item.children && item.children.length > 0;
+  const hasIdeas = item.ideas && item.ideas.length > 0;
   
   // Override expanded state based on parent collapse all state
-  const isItemExpanded = item.type === 'heading' && hasChildren ? 
-    (isExpanded && !allCollapsed) : 
-    isExpanded;
-  
-  if (item.type === 'heading') {
+  const isItemExpanded = hasIdeas ? (isExpanded && !allCollapsed) : isExpanded;
+
+  if (hasIdeas) {
     return (
       <div className="border-b border-gray-100 last:border-0">
         <div 
@@ -75,7 +73,7 @@ const TocItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
           role="button"
           tabIndex={0}
           aria-expanded={isItemExpanded}
-          aria-label={`Toggle ${item.title} section`}
+          aria-label={`Toggle ${item.name} section`}
         >
           <div className="flex items-center gap-4">
             <span className="text-sm font-mono text-gray-400 w-6">
@@ -83,21 +81,16 @@ const TocItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
             </span>
             <div>
               <span className="text-lg font-medium text-gray-800 group-hover:text-blue-700 transition-colors">
-                {item.title}
+                {item.name}
               </span>
-              {item.originality && (
-                <span className="text-xs text-gray-500 ml-2 block">
-                  Originality: {item.originality}
-                </span>
-              )}
-              {hasChildren && (
+              {hasIdeas && (
                 <span className="text-xs text-gray-500 ml-2">
-                  ({item.children.length} items)
+                  ({item.ideas.length} ideas)
                 </span>
               )}
             </div>
           </div>
-          {hasChildren && (
+          {hasIdeas && (
             <ChevronRight 
               size={18} 
               className={`text-gray-300 group-hover:text-blue-400 transition-transform ${
@@ -107,12 +100,12 @@ const TocItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
             />
           )}
         </div>
-        {hasChildren && isItemExpanded && (
+        {hasIdeas && isItemExpanded && (
           <div className="ml-8 pl-4 border-l border-gray-200">
-            {item.children.map((child, index) => (
-              <TocItem 
-                key={child.id || index} 
-                item={child} 
+            {item.ideas.map((idea, index) => (
+              <TagItem 
+                key={idea.id || index} 
+                item={idea} 
                 level={level + 1} 
                 onShowFullContent={onShowFullContent}
                 allCollapsed={allCollapsed}
@@ -123,49 +116,73 @@ const TocItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
       </div>
     );
   } else {
-    // Display idea item
-    return (
-      <div 
-        className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer border-b border-gray-50 last:border-0"
-        onClick={() => onShowFullContent(item.title, item.text)}
-        role="button"
-        tabIndex={0}
-        aria-label={`View details for ${item.title}`}
-      >
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-mono text-gray-400 w-6">
-            {String(level).padStart(2, '0')}
-          </span>
-          <div>
-            <span className="text-lg font-medium text-gray-800 group-hover:text-blue-700 transition-colors">
-              {item.title}
+    // Display idea item - only show modal for actual ideas, not tags without ideas
+    // Check if this is an actual idea (has a description) or just a tag without ideas
+    const isActualIdea = item.description && item.description !== '';
+    
+    if (isActualIdea) {
+      return (
+        <div 
+          className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer border-b border-gray-50 last:border-0"
+          onClick={() => onShowFullContent(item.name, item.description || '')}
+          role="button"
+          tabIndex={0}
+          aria-label={`View details for ${item.name}`}
+        >
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-mono text-gray-400 w-6">
+              {String(level).padStart(2, '0')}
             </span>
-            {item.text && (
-              <p className="text-sm text-gray-600 mt-1 max-w-md line-clamp-2">
-                {item.text}
-              </p>
-            )}
-            <span className="text-xs text-gray-500 mt-1 block">
-              Originality: {item.originality}
-            </span>
+            <div>
+              <span className="text-lg font-medium text-gray-800 group-hover:text-blue-700 transition-colors">
+                {item.name}
+              </span>
+              {item.description && (
+                <p className="text-sm text-gray-600 mt-1 max-w-md line-clamp-2">
+                  {item.description}
+                </p>
+              )}
+            </div>
           </div>
+          <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400" aria-hidden="true" />
         </div>
-        <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400" aria-hidden="true" />
-      </div>
-    );
+      );
+    } else {
+      // This is a tag without ideas - just display it without modal functionality
+      return (
+        <div 
+          className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer border-b border-gray-50 last:border-0"
+          role="button"
+          tabIndex={0}
+          aria-label={item.name}
+        >
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-mono text-gray-400 w-6">
+              {String(level).padStart(2, '0')}
+            </span>
+            <div>
+              <span className="text-lg font-medium text-gray-800 group-hover:text-blue-700 transition-colors">
+                {item.name}
+              </span>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400" aria-hidden="true" />
+        </div>
+      );
+    }
   }
 };
 
 /**
- * Table of Contents Component - Displays hierarchical structure of content
- * 
+ * Tags and Ideas Page Component - Displays hierarchical structure of tags and their associated ideas
+ *
  * This component provides:
- * - Hierarchical navigation of content sections
+ * - Hierarchical navigation of tags and ideas
  * - Ability to view full content in a modal
  * - Refresh functionality to update content structure
  * - Responsive design for all screen sizes
  * - Accessible UI components
- * 
+ *
  * Features:
  * - Collapsible sections
  * - Loading states
@@ -173,9 +190,9 @@ const TocItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
  * - Full content preview
  * - Content refresh capability
  */
-const TableOfContents = () => {
+const TagsIdeasPage = () => {
   // State management for component data
-  const [tocStructure, setTocStructure] = useState([]);
+  const [tags, setTags] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState({ title: '', text: '' });
@@ -184,19 +201,37 @@ const TableOfContents = () => {
   const [allCollapsed, setAllCollapsed] = useState(false);
 
   /**
-   * Fetch the table of contents structure from the API
+   * Fetch tags and their associated ideas from the API
    * @async
    * @returns {Promise<void>}
    */
-  const fetchTocStructure = async () => {
+  const fetchTagsAndIdeas = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await getTocStructure();
-      setTocStructure(response.data);
+      const tagsResponse = await getTags();
+      const tagsData = tagsResponse.data;
+
+      const tagsWithIdeas = await Promise.all(
+        tagsData.map(async (tag) => {
+          const ideasResponse = await getIdeasFromTags(tag.name);
+          const ideasData = ideasResponse.data;
+          console.log('Tag:', tag.name, 'Ideas:', ideasData);
+          return {
+            name: tag.name,
+            ideas: ideasData.map(idea => ({
+              id: idea.id,
+              name: idea.title || 'Untitled Idea',
+              description: idea.content || '',
+            })),
+          };
+        })
+      );
+
+      setTags(tagsWithIdeas);
     } catch (err) {
-      console.error('Error fetching TOC structure:', err);
-      setError('Failed to load table of contents. Please try again.');
+      console.error('Error fetching tags and ideas:', err);
+      setError('Failed to load tags and ideas. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -223,32 +258,26 @@ const TableOfContents = () => {
   };
 
   /**
-   * Refresh the table of contents structure
+   * Refresh the tags and ideas structure
    * @async
    * @returns {Promise<void>}
    */
-  const refreshTocStructure = async () => {
+  const refreshTagsAndIdeas = async () => {
     try {
       setIsRefreshing(true);
       setError(null);
-      
-      // First update the TOC structure
-      await updateTocStructure();
-      
-      // Then fetch the updated structure
-      const response = await getTocStructure();
-      setTocStructure(response.data);
+      await fetchTagsAndIdeas();
     } catch (err) {
-      console.error('Error refreshing TOC structure:', err);
-      setError('Failed to refresh table of contents. Please try again.');
+      console.error('Error refreshing tags and ideas:', err);
+      setError('Failed to refresh tags and ideas. Please try again.');
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  // Load TOC structure when component mounts
+  // Load tags and ideas when component mounts
   useEffect(() => {
-    fetchTocStructure();
+    fetchTagsAndIdeas();
   }, []);
 
   /**
@@ -257,14 +286,6 @@ const TableOfContents = () => {
    */
   const toggleAllSections = () => {
     setAllCollapsed(!allCollapsed);
-  };
-
-  /**
-   * Check if all sections are collapsed
-   * @returns {boolean} True if all sections are collapsed
-   */
-  const areAllSectionsCollapsed = () => {
-    return allCollapsed;
   };
 
   return (
@@ -287,8 +308,8 @@ const TableOfContents = () => {
             <BookOpen size={28} />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Table of contents</h1>
-            <p className="text-gray-500 italic">{tocStructure.length} sections</p>
+            <h1 className="text-3xl font-bold text-gray-900">Tags and Ideas</h1>
+            <p className="text-gray-500 italic">{tags.length} tags</p>
           </div>
           <div className="ml-auto flex gap-2">
             <button
@@ -302,7 +323,7 @@ const TableOfContents = () => {
               </span>
             </button>
             <button
-              onClick={refreshTocStructure}
+              onClick={refreshTagsAndIdeas}
               disabled={isRefreshing}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
               aria-label={isRefreshing ? "Refreshing..." : "Refresh content"}
@@ -330,18 +351,18 @@ const TableOfContents = () => {
           </div>
         ) : (
           <div className="space-y-1">
-            {tocStructure.length > 0 ? (
-              tocStructure.map((item, index) => (
-                <TocItem 
-                  key={item.id || index} 
-                  item={item} 
+            {tags.length > 0 ? (
+              tags.map((tag, index) => (
+                <TagItem 
+                  key={tag.name || index} 
+                  item={tag} 
                   level={1} 
                   onShowFullContent={handleShowFullContent}
                   allCollapsed={allCollapsed}
                 />
               ))
             ) : (
-              <p className="text-center text-gray-400 py-10">No content available at this time.</p>
+              <p className="text-center text-gray-400 py-10">No tags available at this time.</p>
             )}
           </div>
         )}
@@ -358,4 +379,4 @@ const TableOfContents = () => {
   );
 };
 
-export default TableOfContents;
+export default TagsIdeasPage;

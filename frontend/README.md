@@ -1,4 +1,4 @@
-# Brainiac5 Frontend
+# Consensia Frontend
 
 The front end that allow to interact with ideas and order them.
 

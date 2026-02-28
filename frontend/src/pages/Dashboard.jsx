@@ -133,8 +133,9 @@ const Dashboard = () => {
     return ideas.filter(idea => {
       const name = idea.title ? idea.title.toLowerCase() : "";
       const description = idea.content ? idea.content.toLowerCase() : "";
+      const tags = idea.tags ? idea.tags.toLowerCase() : "";
       const search = searchTerm.toLowerCase();
-      return name.includes(search) || description.includes(search);
+      return name.includes(search) || description.includes(search) || tags.includes(search);
     });
   };
 
