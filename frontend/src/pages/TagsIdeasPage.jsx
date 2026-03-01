@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen, ChevronRight, Loader2, X, RotateCcw, Trash2 } from 'lucide-react';
-import { getTags, getIdeasFromTags, deleteTag } from '../services/api';
+import { getTags, getIdeasFromTags, getIdeas, deleteTag } from '../services/api';
 
 /**
  * Modal component for displaying full content of tags and ideas
@@ -112,11 +112,12 @@ const TagItem = ({ item, level = 1, onShowFullContent, allCollapsed, onDeleteTag
   const [isExpanded, setIsExpanded] = useState(true);
   
   const hasIdeas = item.ideas && item.ideas.length > 0;
+  const isTag = hasIdeas;
   
   // Override expanded state based on parent collapse all state
   const isItemExpanded = hasIdeas ? (isExpanded && !allCollapsed) : isExpanded;
 
-  if (hasIdeas) {
+  if (isTag) {
     return (
       <div className="border-b border-gray-100 last:border-0">
         <div 
@@ -258,6 +259,7 @@ const TagItem = ({ item, level = 1, onShowFullContent, allCollapsed, onDeleteTag
 const TagsIdeasPage = () => {
   // State management for component data
   const [tags, setTags] = useState([]);
+  const [untaggedIdeas, setUntaggedIdeas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState({ title: '', text: '' });
@@ -297,6 +299,26 @@ const TagsIdeasPage = () => {
       );
 
       setTags(tagsWithIdeas);
+      
+      // Fetch all ideas to find untagged ones
+      const allIdeasResponse = await getIdeas();
+      const allIdeasData = allIdeasResponse.data;
+      
+      // Find ideas that don't belong to any tag
+      const taggedIdeaIds = new Set();
+      tagsWithIdeas.forEach(tag => {
+        tag.ideas.forEach(idea => {
+          if (idea.id) taggedIdeaIds.add(idea.id);
+        });
+      });
+      
+      const untagged = allIdeasData.filter(idea => !taggedIdeaIds.has(idea.id)).map(idea => ({
+        id: idea.id,
+        name: idea.title || 'Untitled Idea',
+        description: idea.content || '',
+      }));
+      
+      setUntaggedIdeas(untagged);
     } catch (err) {
       console.error('Error fetching tags and ideas:', err);
       setError('Failed to load tags and ideas. Please try again.');
@@ -473,6 +495,29 @@ const TagsIdeasPage = () => {
               ))
             ) : (
               <p className="text-center text-gray-400 py-10">No tags available at this time.</p>
+            )}
+            
+            {/* Untagged ideas section */}
+            {untaggedIdeas.length > 0 && (
+              <div className="border-t border-gray-200 mt-8 pt-4">
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <span className="text-sm font-mono text-gray-400 w-6">00</span>
+                  <span className="text-lg font-medium text-gray-800">Untagged Ideas</span>
+                  <span className="text-xs text-gray-500 ml-2">({untaggedIdeas.length} ideas)</span>
+                </div>
+                <div className="ml-8 pl-4 border-l border-gray-200">
+                  {untaggedIdeas.map((idea, index) => (
+                    <TagItem 
+                      key={idea.id || index} 
+                      item={idea} 
+                      level={2} 
+                      onShowFullContent={handleShowFullContent}
+                      allCollapsed={allCollapsed}
+                      onDeleteTag={handleDeleteTag}
+                    />
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}

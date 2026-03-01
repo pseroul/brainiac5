@@ -47,7 +47,9 @@ const IdeaModal = ({ isOpen, onClose, onSave, initialData }) => {
       tags: tags.length > 0 ? tags.join(';') : "" // Send as semicolon-separated string
     };
 
-    onSave(dataToSave);
+    onSave(dataToSave).finally(() => {
+      setIsSaving(false);
+    });
   };
 
   if (!isOpen) return null;
