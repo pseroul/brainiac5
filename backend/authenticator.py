@@ -1,8 +1,10 @@
 import pyotp
-import json
 import argparse
 import logging
 import os
+import sqlite3
+from config import set_env_var
+from data_handler import init_database
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -10,7 +12,7 @@ def generate_auth_link(email: str, debug: bool) -> None:
     """
     Generate authentication link and save user credentials.
     
-    Creates a Google Authenticator secret and saves user credentials to a JSON file.
+    Creates a Google Authenticator secret and saves user credentials to the SQLite database.
     Generates a provisioning URI for QR code generation.
     
     Args:
@@ -22,13 +24,22 @@ def generate_auth_link(email: str, debug: bool) -> None:
     """
     otp_secret = pyotp.random_base32()
     
-    user = {
-    "email": email,
-    "otp_secret": otp_secret}
-
-    json_str = json.dumps(user, indent=4)
-    with open(os.getenv('USER_DB'), "w") as f:
-        f.write(json_str)
+    # Save user to SQLite database
+    conn = sqlite3.connect(os.getenv('NAME_DB'))
+    cursor = conn.cursor()
+    try:
+        # Extract username from email (part before @)
+        username = email.split('@')[0]
+        cursor.execute(
+            "INSERT INTO users (username, email, hashed_password) VALUES (?, ?, ?)",
+            (username, email, otp_secret)
+        )
+        conn.commit()
+        logger.info(f"User '{email}' added successfully to database.")
+    except sqlite3.IntegrityError:
+        logger.info(f"Error: User '{email}' already exists.")
+    finally:
+        conn.close()
 
     totp = pyotp.TOTP(otp_secret)
     appname = 'Brainiac5'
@@ -40,18 +51,31 @@ def generate_auth_link(email: str, debug: bool) -> None:
     print(f"Pasted the following link in Qr.io to obtain a QR code : {uri}")
 
 def verify_access(email: str, secret_key: str) -> bool:
-    with open(os.getenv('USER_DB'), "r") as f:
-        user = json.load(f)
-
-    totp = pyotp.TOTP(user['otp_secret'])
-    if email == user["email"] and totp.verify(secret_key):
-        return True
+    conn = sqlite3.connect(os.getenv('NAME_DB'))
+    cursor = conn.cursor()
     
-    return False
+    try:
+        cursor.execute(
+            "SELECT hashed_password FROM users WHERE email = ?",
+            (email,)
+        )
+        result = cursor.fetchone()
+        
+        if result:
+            otp_secret = result[0]
+            totp = pyotp.TOTP(otp_secret)
+            if totp.verify(secret_key):
+                return True
+        
+        return False
+    finally:
+        conn.close()
     
 
 
 if __name__ == "__main__":
+    set_env_var()
+    init_database()
     parser = argparse.ArgumentParser(description='Create user and generate Google Auth')
     parser.add_argument('email', type=str, help='Email of the user')
     parser.add_argument('-d', '--debug', help='generate a Google Auth for debug purpose', action="store_true")
