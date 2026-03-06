@@ -179,3 +179,57 @@ class TestAuthenticator:
         # pyotp.TOTP will fail with empty secret
         result = verify_access("test@example.com", "123456")
         assert result is False
+
+    @patch('backend.authenticator.pyotp')
+    def test_multiple_users(self, mock_pyotp):
+        """Test that multiple users can be stored and verified"""
+        # Set up mock for pyotp functions
+        mock_pyotp.random_base32.side_effect = ["SECRET1", "SECRET2", "SECRET3"]
+        mock_totp = Mock()
+        mock_totp.verify.return_value = True
+        mock_totp.provisioning_uri.return_value = "otpauth://test/uri"
+        mock_pyotp.TOTP.return_value = mock_totp
+        
+        # Create multiple users
+        generate_auth_link("user1@example.com", False)
+        generate_auth_link("user2@example.com", False)
+        generate_auth_link("user3@example.com", False)
+        
+        # Verify all users were inserted
+        conn = sqlite3.connect(self.test_db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM users")
+        count = cursor.fetchone()[0]
+        conn.close()
+        
+        assert count == 3
+        
+        # Verify each user can be accessed
+        mock_totp.verify.return_value = True
+        assert verify_access("user1@example.com", "123456") is True
+        assert verify_access("user2@example.com", "123456") is True
+        assert verify_access("user3@example.com", "123456") is True
+
+    @patch('backend.authenticator.pyotp')
+    def test_duplicate_username_prevention(self, mock_pyotp):
+        """Test that duplicate usernames are prevented"""
+        # Set up mock for pyotp functions
+        mock_pyotp.random_base32.return_value = "SECRET1"
+        mock_totp = Mock()
+        mock_totp.provisioning_uri.return_value = "otpauth://test/uri"
+        mock_pyotp.TOTP.return_value = mock_totp
+        
+        # Create first user
+        generate_auth_link("test@example.com", False)
+        
+        # Try to create second user with same username (same email)
+        generate_auth_link("test@example.com", False)
+        
+        # Verify only one user exists
+        conn = sqlite3.connect(self.test_db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM users WHERE username = ?", ("test",))
+        count = cursor.fetchone()[0]
+        conn.close()
+        
+        assert count == 1
