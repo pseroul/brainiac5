@@ -63,8 +63,8 @@ const Login = () => {
       
       // Check if authentication was successful
       if (response && response.data && response.data.status === 'success') {
-        // Store authentication state
-        localStorage.setItem('isAuthenticated', 'true');
+        // Store JWT token
+        localStorage.setItem('access_token', response.data.access_token);
         setSuccess(true);
         // Navigate to dashboard
         navigate('/dashboard');

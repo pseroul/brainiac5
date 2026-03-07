@@ -3,9 +3,40 @@ import axios from 'axios';
 // Determine API URL based on environment variables
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+// Create axios instance with JWT token interceptor
 const api = axios.create({
   baseURL: API_URL,
 });
+
+// Add request interceptor to include JWT token in Authorization header
+api.interceptors.request.use(
+  (config) => {
+    // Get token from localStorage
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle 401 Unauthorized errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Token expired or invalid, clear authentication
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('isAuthenticated');
+      // Redirect to login page
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const getIdeas = () => api.get('/ideas');
 export const getIdeasFromTags = (tags) => api.get(`/ideas/tags/${tags}`);

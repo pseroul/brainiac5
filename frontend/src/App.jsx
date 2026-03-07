@@ -10,8 +10,8 @@ import Navbar from './components/Navbar';
 
 const ProtectedRoute = ({ children }) => {
   // const auth = true; // Simulation for debug
-  const auth = localStorage.getItem('isAuthenticated');
-  return auth === 'true' ? children : <Navigate to="/" />;
+  const auth = localStorage.getItem('access_token');
+  return auth ? children : <Navigate to="/" />;
 };
 
 function App() {

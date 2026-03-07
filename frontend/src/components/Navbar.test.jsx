@@ -44,7 +44,7 @@ describe('Navbar Component', () => {
     });
     
     // Set authenticated state for tests
-    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('access_token', 'test-token');
   });
 
   it('renders the navbar with logo and title', () => {

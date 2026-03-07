@@ -4,12 +4,12 @@ import { Menu, X, LogOut, Lightbulb, Home, Settings, User, Tag } from 'lucide-re
 
 const Navbar = ({ isOpen: controlledIsOpen = false }) => {
   const [isOpen, setIsOpen] = useState(controlledIsOpen);
-  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+  const isAuthenticated = !!localStorage.getItem('access_token');
 
   if (!isAuthenticated) return null;
 
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.removeItem('access_token');
     window.location.href = '/';
   };
 

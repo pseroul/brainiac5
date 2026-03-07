@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import Hashable, List, Optional, Any
 import sqlite3
@@ -9,6 +9,9 @@ from config import set_env_var
 from data_similarity import DataSimilarity, load_toc_structure
 import logging
 import os
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -17,6 +20,11 @@ from data_handler import (
     get_content, get_tags, get_tags_from_idea, add_idea, add_tag, 
     add_relation, remove_idea, remove_tag, remove_relation, update_idea, get_similar_idea
 )
+
+# JWT Configuration
+SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'your-secret-key-here-change-in-production')
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # Initialisation of the database and variable
 set_env_var()
@@ -34,6 +42,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# OAuth2 scheme for JWT authentication
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
     
 
 # Pydantic models
@@ -97,12 +108,59 @@ def get_db():
     yield conn
     conn.close()
 
+# JWT Utility Functions
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """Create a JWT access token.
+    
+    Args:
+        data (dict): Data to encode in the token
+        expires_delta (Optional[timedelta]): Token expiration time
+        
+    Returns:
+        str: JWT access token
+    """
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """Get the current user from JWT token.
+    
+    Args:
+        token (str): JWT token from authorization header
+        
+    Returns:
+        dict: User information from token
+        
+    Raises:
+        HTTPException: If token is invalid or expired
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+        return {"email": email}
+    except JWTError:
+        raise credentials_exception
+
 # GET endpoints
 @app.get("/ideas", response_model=List[IdeaItem])
-async def get_all_ideas() -> List[dict[Hashable, Any]]:
+async def get_all_ideas(current_user: dict = Depends(get_current_user)) -> List[dict[Hashable, Any]]:
     """Get all ideas with optional limit.
     
     Args:
+        current_user (dict): Current authenticated user from JWT token
         limit (int, optional): Maximum number of ideas to return. 
                               Defaults to 500.
     
@@ -119,11 +177,12 @@ async def get_all_ideas() -> List[dict[Hashable, Any]]:
         raise HTTPException(status_code=500, detail=f"Error retrieving data: {str(e)}")
 
 @app.get("/ideas/tags/{tags}", response_model=List[IdeaItem])
-async def get_ideas_by_tags(tags: str) -> List[dict[Hashable, str]]:
+async def get_ideas_by_tags(tags: str, current_user: dict = Depends(get_current_user)) -> List[dict[Hashable, str]]:
     """Get ideas by tags (semicolon separated).
     
     Args:
         tags (str): Tags to filter ideas, separated by semicolons.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         List[dict[Hashable, str]]: List of ideas matching the specified tags.
@@ -138,11 +197,12 @@ async def get_ideas_by_tags(tags: str) -> List[dict[Hashable, str]]:
         raise HTTPException(status_code=500, detail=f"Error retrieving data by tags: {str(e)}")
 
 @app.get("/ideas/search/{subname}", response_model=List[IdeaItem])
-async def search_ideas(subname: str) -> List[dict[Hashable, Any]]:
+async def search_ideas(subname: str, current_user: dict = Depends(get_current_user)) -> List[dict[Hashable, Any]]:
     """Search ideas by partial name.
     
     Args:
         subname (str): Partial name to search for in ideas.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         List[dict[Hashable, Any]]: List of ideas matching the search term.
@@ -157,11 +217,12 @@ async def search_ideas(subname: str) -> List[dict[Hashable, Any]]:
         raise HTTPException(status_code=500, detail=f"Error searching data: {str(e)}")
 
 @app.get("/ideas/{idea_id}/content", response_model=str)
-async def get_idea_content(idea_id: int) -> str:
+async def get_idea_content(idea_id: int, current_user: dict = Depends(get_current_user)) -> str:
     """Get content of a specific idea.
     
     Args:
         idea_id (int): The ID of the idea to retrieve content for.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         str: The content of the specified idea.
@@ -176,8 +237,11 @@ async def get_idea_content(idea_id: int) -> str:
         raise HTTPException(status_code=500, detail=f"Error retrieving content: {str(e)}")
 
 @app.get("/tags", response_model=List[TagItem])
-async def get_all_tags() -> List[dict[Hashable, Any]]:
+async def get_all_tags(current_user: dict = Depends(get_current_user)) -> List[dict[Hashable, Any]]:
     """Get all tags.
+    
+    Args:
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         List[dict[Hashable, Any]]: List of all tags in the system.
@@ -192,11 +256,12 @@ async def get_all_tags() -> List[dict[Hashable, Any]]:
         raise HTTPException(status_code=500, detail=f"Error retrieving tags: {str(e)}")
 
 @app.get("/ideas/{idea_id}/tags", response_model=List[str])
-async def get_tags_for_idea(idea_id: int):
+async def get_tags_for_idea(idea_id: int, current_user: dict = Depends(get_current_user)):
     """Get tags for a specific idea.
     
     Args:
         idea_id (int): The id of the idea to retrieve tags for.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         List[str]: List of tags associated with the specified idea.
@@ -211,11 +276,12 @@ async def get_tags_for_idea(idea_id: int):
         raise HTTPException(status_code=500, detail=f"Error retrieving tags for data: {str(e)}")
 
 @app.get("/ideas/similar/{idea}", response_model=List[IdeaItem])
-async def get_similar_ideas_endpoint(idea: str):
+async def get_similar_ideas_endpoint(idea: str, current_user: dict = Depends(get_current_user)):
     """Get similar ideas based on semantic similarity.
     
     Args:
         idea (str): The name of the idea to find similar items for.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         List[IdeaItem]: List of similar ideas based on semantic similarity.
@@ -233,11 +299,12 @@ async def get_similar_ideas_endpoint(idea: str):
 
 # POST endpoints
 @app.post("/ideas", response_model=dict)
-async def create_idea(data: IdeaItem) -> dict[str, str | int]:
+async def create_idea(data: IdeaItem, current_user: dict = Depends(get_current_user)) -> dict[str, str | int]:
     """Add a new idea item.
     
     Args:
         idea (IdeaItem): The idea item data to add, including title, content, and optional tags.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         dict[str, str]: A success message indicating the idea item was added.
@@ -265,11 +332,12 @@ async def create_idea(data: IdeaItem) -> dict[str, str | int]:
         raise HTTPException(status_code=500, detail=f"Error adding idea: {str(e)}")
 
 @app.post("/tags", response_model=dict)
-async def create_tag(tag: TagItem) -> dict[str, str]:
+async def create_tag(tag: TagItem, current_user: dict = Depends(get_current_user)) -> dict[str, str]:
     """Add a new tag.
     
     Args:
         tag (TagItem): The tag data to add.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         dict[str, str]: A success message indicating the tag was added.
@@ -284,11 +352,12 @@ async def create_tag(tag: TagItem) -> dict[str, str]:
         raise HTTPException(status_code=500, detail=f"Error adding tag: {str(e)}")
 
 @app.post("/relations", response_model=dict)
-async def create_relation(relation: RelationItem) -> dict[str, str]:
+async def create_relation(relation: RelationItem, current_user: dict = Depends(get_current_user)) -> dict[str, str]:
     """Create a relationship between data and tag.
     
     Args:
         relation (RelationItem): The relationship data containing data name and tag name.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         dict[str, str]: A success message indicating the relationship was created.
@@ -304,12 +373,13 @@ async def create_relation(relation: RelationItem) -> dict[str, str]:
 
 # PUT endpoint
 @app.put("/ideas/{id}", response_model=dict)
-async def update_idea_item(id: int, idea: IdeaItem) -> dict[str, str]:
+async def update_idea_item(id: int, idea: IdeaItem, current_user: dict = Depends(get_current_user)) -> dict[str, str]:
     """Update an existing idea.
     
     Args:
         id (int): the idea id
         idea (IdeaItem): The updated idea information including title, content, and optional tags.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         dict[str, str]: A success message indicating the idea was updated.
@@ -359,12 +429,13 @@ async def update_idea_item(id: int, idea: IdeaItem) -> dict[str, str]:
 
 # DELETE endpoints
 @app.delete("/ideas/{id}", response_model=dict)
-async def delete_idea(id: int, idea: IdeaItem) -> dict[str, str]:
+async def delete_idea(id: int, idea: IdeaItem, current_user: dict = Depends(get_current_user)) -> dict[str, str]:
     """Remove a idea.
     
     Args:
         id (int): The id of the idea to remove.
         idea (IdeaItem): The idea information including title, content, and optional tags.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         dict[str, str]: A success message indicating the idea was removed.
@@ -379,11 +450,12 @@ async def delete_idea(id: int, idea: IdeaItem) -> dict[str, str]:
         raise HTTPException(status_code=500, detail=f"Error removing idea: {str(e)}")
 
 @app.delete("/tags/{name}", response_model=dict)
-async def delete_tag(name: str) -> dict[str, str]:
+async def delete_tag(name: str, current_user: dict = Depends(get_current_user)) -> dict[str, str]:
     """Remove a tag.
     
     Args:
         name (str): The name of the tag to remove.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         dict[str, str]: A success message indicating the tag was removed.
@@ -398,11 +470,12 @@ async def delete_tag(name: str) -> dict[str, str]:
         raise HTTPException(status_code=500, detail=f"Error removing tag: {str(e)}")
 
 @app.delete("/relations", response_model=dict)
-async def delete_relation(relation: RelationItem) -> dict[str, str]:
+async def delete_relation(relation: RelationItem, current_user: dict = Depends(get_current_user)) -> dict[str, str]:
     """Remove a relationship between data and tag.
     
     Args:
         relation (RelationItem): The relationship data containing idea id and tag name.
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         dict[str, str]: A success message indicating the relationship was removed.
@@ -424,8 +497,11 @@ async def health_check() -> dict[str, str]:
 
 # TOC endpoint
 @app.get("/toc/structure", response_model=list)
-async def get_toc_structure() -> list:
+async def get_toc_structure(current_user: dict = Depends(get_current_user)) -> list:
     """Get hierarchical table of contents structure from all data.
+    
+    Args:
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         list: Hierarchical table of contents structure generated from all data.
@@ -446,8 +522,11 @@ async def get_toc_structure() -> list:
         raise HTTPException(status_code=500, detail=f"Error generating TOC structure: {str(e)}")
     
 @app.post("/toc/update", response_model=dict)
-async def update_toc_structure() -> dict[str, str]:
+async def update_toc_structure(current_user: dict = Depends(get_current_user)) -> dict[str, str]:
     """Update the hierarchical table of contents structure
+    
+    Args:
+        current_user (dict): Current authenticated user from JWT token
     
     Returns:
         list: Hierarchical table of contents structure generated from all data.
@@ -464,20 +543,29 @@ async def update_toc_structure() -> dict[str, str]:
 
 @app.post("/verify-otp")
 def verify_otp(request: LoginRequest) -> dict[str, str]:
-    """Verify the OTP code sent by React.
+    """Verify the OTP code sent by React and return JWT token.
     
     Args:
         request (LoginRequest): The login request containing email and OTP code.
     
     Returns:
-        dict[str, str]: A success response with status and message if verification passes.
+        dict[str, str]: A success response with JWT token if verification passes.
     
     Raises:
         HTTPException: If the OTP code is invalid or expired.
     """
     # Check the 6-digit code
     if verify_access(request.email, request.otp_code):
-        return {"status": "success", "message": "Connection authorized"}
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": request.email}, expires_delta=access_token_expires
+        )
+        return {
+            "status": "success", 
+            "message": "Connection authorized",
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
     else:
         raise HTTPException(status_code=401, detail="Invalid or expired code")
 
