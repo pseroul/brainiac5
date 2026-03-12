@@ -156,7 +156,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 # GET endpoints
 @app.get("/ideas", response_model=List[IdeaItem])
-async def get_all_ideas() -> List[dict[Hashable, Any]]:
+async def get_all_ideas(current_user: dict = Depends(get_current_user)) -> List[dict[Hashable, Any]]:
     """Get all ideas.
     
     Returns:
@@ -172,7 +172,7 @@ async def get_all_ideas() -> List[dict[Hashable, Any]]:
         raise HTTPException(status_code=500, detail=f"Error retrieving data: {str(e)}")
 
 @app.get("/user/ideas", response_model=List[IdeaItem])
-async def get_user_ideas(current_user: dict = Depends(get_current_user)) -> List[dict[Hashable, Any]]:
+async def get_all_user_ideas(current_user: dict = Depends(get_current_user)) -> List[dict[Hashable, Any]]:
     """Get all ideas with optional limit.
     
     Args:

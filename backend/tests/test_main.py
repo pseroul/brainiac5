@@ -4,8 +4,39 @@ from unittest.mock import Mock, patch, MagicMock
 import pytest
 import sqlite3
 
-# Add the backend directory to the path so we can import main
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add both the backend directory (for bare imports inside main.py like `from authenticator import ...`)
+# and the repo root (for package-style imports like `from backend.main import ...`) to the path.
+_tests_dir = os.path.dirname(__file__)
+_backend_dir = os.path.join(_tests_dir, '..')
+_repo_root = os.path.join(_tests_dir, '../..')
+sys.path.insert(0, os.path.abspath(_backend_dir))
+sys.path.insert(0, os.path.abspath(_repo_root))
+
+# Mock out heavy ML dependencies that are not available in the test environment
+# (umap-learn, sentence-transformers, chromadb, sklearn). These are patched before
+# importing backend.main so the import chain does not fail during test collection.
+import unittest.mock as _mock
+
+_ml_modules = [
+    "umap", "umap.umap_",
+    "sentence_transformers",
+    "chromadb",
+    "chromadb.utils",
+    "chromadb.utils.embedding_functions",
+    "sklearn",
+    "sklearn.cluster",
+    "sklearn.neighbors",
+    "sklearn.preprocessing",
+    "sklearn.feature_extraction",
+    "sklearn.feature_extraction.text",
+]
+for _mod in _ml_modules:
+    if _mod not in sys.modules:
+        sys.modules[_mod] = _mock.MagicMock()
+
+# Provide a valid database path before importing backend.main, because main.py calls
+# init_database() at module level and needs NAME_DB to be set.
+os.environ.setdefault("NAME_DB", os.path.join(os.path.abspath(_tests_dir), "test_main_database.db"))
 
 from fastapi.testclient import TestClient
 from backend.main import app, get_db, IdeaItem, TagItem, RelationItem, LoginRequest
