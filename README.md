@@ -5,14 +5,11 @@ It contains two different services:
 - backend: a fastapi server managing data that run on port 8000
 - frontend: a react.js interface to access the backend. 
 
-# backend documentation
+# Backend
 See [how to install and run backend](/backend/README.md)
 
-# FRONTEND
-## Install
-```
-npm run dev
-```
+# Frontend
+See [how to install and run frontend](/frontend/README.md)
 
 # Deployment in production
 ## Configure your router and Pi
