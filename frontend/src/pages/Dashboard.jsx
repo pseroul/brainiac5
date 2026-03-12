@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Trash2, Edit3, Loader2, Lightbulb } from 'lucide-react';
-import { getIdeas, createIdea, deleteIdea, updateIdea, getSimilarIdeas } from '../services/api';
+import { getIdeas, getUserIdeas, createIdea, deleteIdea, updateIdea, getSimilarIdeas } from '../services/api';
 import IdeaModal from '../components/IdeaModal';
 
 /**
@@ -31,6 +31,7 @@ const Dashboard = () => {
   const [similarIdeas, setSimilarIdeas] = useState([]);
   const [isSearchingSimilar, setIsSearchingSimilar] = useState(false);
   const [showSimilarResults, setShowSimilarResults] = useState(false);
+  const [showMyIdeasOnly, setShowMyIdeasOnly] = useState(false);
 
   /**
    * Fetch all ideas from the API
@@ -40,7 +41,7 @@ const Dashboard = () => {
   const fetchIdeas = async () => {
     try {
       setIsLoading(true);
-      const response = await getIdeas();
+      const response = await (showMyIdeasOnly ? getUserIdeas() : getIdeas());
       setIdeas(response.data);
     } catch (error) {
       console.error('Error fetching ideas:', error);
@@ -139,10 +140,10 @@ const Dashboard = () => {
     });
   };
 
-  // Load ideas when component mounts
+  // Load ideas when component mounts or when filter changes
   useEffect(() => {
     fetchIdeas();
-  }, []);
+  }, [showMyIdeasOnly]);
 
   // Get filtered ideas for display
   const filteredIdeas = getFilteredIdeas();
@@ -151,7 +152,30 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       {/* Header Section - Search and Action Buttons */}
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-4 justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Ideas</h1>
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+          <h1 className="text-2xl font-bold text-gray-800">Ideas</h1>
+          {/* Radio Button for filtering ideas */}
+          <div className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              id="allIdeas"
+              name="ideaFilter"
+              checked={!showMyIdeasOnly}
+              onChange={() => setShowMyIdeasOnly(false)}
+              className="text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="allIdeas" className="text-gray-600">All Ideas</label>
+            <input
+              type="radio"
+              id="myIdeas"
+              name="ideaFilter"
+              checked={showMyIdeasOnly}
+              onChange={() => setShowMyIdeasOnly(true)}
+              className="text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="myIdeas" className="text-gray-600">My Ideas</label>
+          </div>
+        </div>
 
         <div className="flex w-full md:w-auto gap-2">
           {/* Search Input */}

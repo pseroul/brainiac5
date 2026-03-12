@@ -259,7 +259,7 @@ def get_similar_idea(idea: str) -> list[dict[str, Any]]:
     return df.to_dict("records")
 
 # ADD FUNCTIONS
-def add_idea(title: str, content: str, owner: int) -> int:
+def add_idea(title: str, content: str, owner_email: str) -> int:
     """
     Add a new idea to the database.
     
@@ -269,7 +269,7 @@ def add_idea(title: str, content: str, owner: int) -> int:
     Args:
         title (str): Name of the idea to add
         content (str): content of the idea to add
-        owner (int): Id of the idea's owner
+        owner_email (str): Email of the idea's owner
         
     Returns:
         int: the id of the new idea
@@ -277,9 +277,20 @@ def add_idea(title: str, content: str, owner: int) -> int:
     conn = sqlite3.connect(os.getenv('NAME_DB'))
     cursor = conn.cursor()
     try:
+        # Get owner_id from email
+        cursor.execute(
+            "SELECT id FROM users WHERE email = ?",
+            (owner_email,)
+        )
+        result = cursor.fetchone()
+        if not result:
+            logger.info(f"Error: User with email '{owner_email}' not found.")
+            return -1
+        owner_id = result[0]
+        
         cursor.execute(
             "INSERT INTO ideas (title, content, owner_id) VALUES (?, ?, ?)",
-            (title, content, owner)
+            (title, content, owner_id)
         )
         conn.commit()
         new_id = cursor.lastrowid

@@ -234,8 +234,8 @@ class TestMainAPI:
         data = response.json()
         assert "id" in data
 
-        # Verify that add_idea was called with correct parameters
-        mock_add_idea.assert_called_once_with("New Idea", "This is a new idea", owner=1)
+        # Verify that add_idea was called with correct parameters (using email instead of owner_id)
+        mock_add_idea.assert_called_once_with("New Idea", "This is a new idea", owner_email="test@example.com")
 
         # Verify that tags were processed
         assert mock_add_tag.call_count == 3
@@ -260,6 +260,36 @@ class TestMainAPI:
         assert response.status_code == 200
         data = response.json()
         assert "id" in data
+    
+    @patch('backend.main.add_idea')
+    def test_create_idea_missing_email_in_token(self, mock_add_idea):
+        """Test creating an idea when email is missing from JWT token"""
+        # Mock the add_idea function
+        mock_add_idea.return_value = 1
+
+        # Create a JWT token without email (malformed token)
+        from backend.main import create_access_token, SECRET_KEY, ALGORITHM
+        from jose import jwt
+        from datetime import datetime, timedelta
+        
+        # Create a token with missing 'sub' field
+        token = jwt.encode(
+            {"exp": (datetime.utcnow() + timedelta(hours=1)).timestamp()},  # Missing 'sub'
+            SECRET_KEY,
+            algorithm=ALGORITHM
+        )
+
+        headers = {"Authorization": f"Bearer {token}"}
+        idea_data = {
+            "title": "New Idea",
+            "content": "This is a new idea"
+        }
+
+        response = client.post("/ideas", json=idea_data, headers=headers)
+        assert response.status_code == 401  # Unauthorized (JWT validation fails)
+        data = response.json()
+        assert "detail" in data
+        assert "Could not validate credentials" in data["detail"]
 
     @patch('backend.main.add_tag')
     def test_create_tag(self, mock_add_tag):

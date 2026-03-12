@@ -39,6 +39,7 @@ api.interceptors.response.use(
 );
 
 export const getIdeas = () => api.get('/ideas');
+export const getUserIdeas = () => api.get('/user/ideas');
 export const getIdeasFromTags = (tags) => api.get(`/ideas/tags/${tags}`);
 export const searchIdeas = (subname) => api.get(`/ideas/search/${subname}`);
 export const getDescription = (idea) => api.get(`/ideas/${idea}/description`);

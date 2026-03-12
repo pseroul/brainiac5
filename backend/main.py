@@ -332,7 +332,10 @@ async def create_idea(data: IdeaItem, current_user: dict = Depends(get_current_u
         HTTPException: If there's an error adding the data to the database.
     """
     try:
-        new_id = add_idea(data.title, data.content, owner=1)  # Assuming owner_id = 1 for now
+        user_email = current_user.get("email")
+        if not user_email:
+            raise HTTPException(status_code=400, detail="User email not found in token")
+        new_id = add_idea(data.title, data.content, owner_email=user_email)
         
         # Handle tags if provided - convert string to list if needed
         if data.tags and data.tags.strip():

@@ -40,6 +40,7 @@ vi.mock('lucide-react', () => {
 // ─── Mock API services ────────────────────────────────────────────────────────
 vi.mock('../services/api', () => ({
   getIdeas: vi.fn(),
+  getUserIdeas: vi.fn(),
   createIdea: vi.fn(),
   updateIdea: vi.fn(),
   deleteIdea: vi.fn(),
@@ -66,7 +67,7 @@ vi.mock('../components/IdeaModal', () => ({
 }));
 
 import Dashboard from './Dashboard';
-import { getIdeas, createIdea, updateIdea, deleteIdea, getSimilarIdeas } from '../services/api';
+import { getIdeas, getUserIdeas, createIdea, updateIdea, deleteIdea, getSimilarIdeas } from '../services/api';
 
 // ─── Test fixtures ─────────────────────────────────────────────────────────────
 const MOCK_IDEAS = [
@@ -623,5 +624,125 @@ describe('Dashboard — getFilteredIdeas pure logic', () => {
     await waitFor(() =>
       expect(screen.getByText('No tags idea')).toBeInTheDocument()
     );
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+describe('Dashboard — radio button filtering', () => {
+  const MOCK_USER_IDEAS = [
+    { id: '1', title: 'My Idea One', content: 'My first idea', tags: 'personal' },
+    { id: '2', title: 'My Idea Two', content: 'My second idea', tags: 'work' },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resolvedGetIdeas();
+    getUserIdeas.mockResolvedValue({ data: MOCK_USER_IDEAS });
+  });
+
+  it('renders radio buttons for filtering ideas', async () => {
+    renderDashboard();
+    await waitFor(() => screen.getByText('Idea Alpha'));
+
+    expect(screen.getByLabelText('All Ideas')).toBeInTheDocument();
+    expect(screen.getByLabelText('My Ideas')).toBeInTheDocument();
+  });
+
+  it('defaults to showing all ideas (All Ideas radio selected)', async () => {
+    renderDashboard();
+    await waitFor(() => screen.getByText('Idea Alpha'));
+
+    expect(screen.getByText('Idea Alpha')).toBeInTheDocument();
+    expect(screen.getByText('Idea Beta')).toBeInTheDocument();
+    expect(screen.getByText('Idea Gamma')).toBeInTheDocument();
+    expect(screen.queryByText('My Idea One')).not.toBeInTheDocument();
+  });
+
+  it('calls getUserIdeas when My Ideas radio is selected', async () => {
+    renderDashboard();
+    await waitFor(() => screen.getByText('Idea Alpha'));
+
+    fireEvent.click(screen.getByLabelText('My Ideas'));
+
+    await waitFor(() => {
+      expect(getUserIdeas).toHaveBeenCalledTimes(1);
+      expect(getIdeas).toHaveBeenCalledTimes(1); // Initial call
+    });
+  });
+
+  it('displays user ideas when My Ideas radio is selected', async () => {
+    renderDashboard();
+    await waitFor(() => screen.getByText('Idea Alpha'));
+
+    fireEvent.click(screen.getByLabelText('My Ideas'));
+
+    await waitFor(() => {
+      expect(screen.getByText('My Idea One')).toBeInTheDocument();
+      expect(screen.getByText('My Idea Two')).toBeInTheDocument();
+      expect(screen.queryByText('Idea Alpha')).not.toBeInTheDocument();
+      expect(screen.queryByText('Idea Beta')).not.toBeInTheDocument();
+    });
+  });
+
+  it('calls getIdeas when All Ideas radio is selected', async () => {
+    renderDashboard();
+    await waitFor(() => screen.getByText('Idea Alpha'));
+
+    // First select My Ideas
+    fireEvent.click(screen.getByLabelText('My Ideas'));
+    await waitFor(() => screen.getByText('My Idea One'));
+
+    // Then select All Ideas again
+    fireEvent.click(screen.getByLabelText('All Ideas'));
+
+    await waitFor(() => {
+      expect(getIdeas).toHaveBeenCalledTimes(2); // Initial + after switching back
+      expect(getUserIdeas).toHaveBeenCalledTimes(1); // Only when My Ideas was selected
+    });
+  });
+
+  it('displays all ideas when All Ideas radio is selected after My Ideas', async () => {
+    renderDashboard();
+    await waitFor(() => screen.getByText('Idea Alpha'));
+
+    // First select My Ideas
+    fireEvent.click(screen.getByLabelText('My Ideas'));
+    await waitFor(() => screen.getByText('My Idea One'));
+
+    // Then select All Ideas again
+    fireEvent.click(screen.getByLabelText('All Ideas'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Idea Alpha')).toBeInTheDocument();
+      expect(screen.getByText('Idea Beta')).toBeInTheDocument();
+      expect(screen.getByText('Idea Gamma')).toBeInTheDocument();
+      expect(screen.queryByText('My Idea One')).not.toBeInTheDocument();
+    });
+  });
+
+  it('handles getUserIdeas API error gracefully', async () => {
+    getUserIdeas.mockRejectedValue(new Error('Network error'));
+    renderDashboard();
+    await waitFor(() => screen.getByText('Idea Alpha'));
+
+    fireEvent.click(screen.getByLabelText('My Ideas'));
+
+    // Should not crash and should still show loading state
+    await waitFor(() => {
+      expect(screen.getByTestId('loader-icon')).toBeInTheDocument();
+    });
+  });
+
+  it('handles empty user ideas array', async () => {
+    getUserIdeas.mockResolvedValue({ data: [] });
+    renderDashboard();
+    await waitFor(() => screen.getByText('Idea Alpha'));
+
+    fireEvent.click(screen.getByLabelText('My Ideas'));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Idea Alpha')).not.toBeInTheDocument();
+      expect(screen.queryByText('My Idea One')).not.toBeInTheDocument();
+    });
   });
 });

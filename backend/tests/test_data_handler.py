@@ -206,11 +206,10 @@ class TestDataHandler:
         cursor = conn.cursor()
         cursor.execute("INSERT INTO users (username, email, hashed_password) VALUES (?, ?, ?)", 
                       ("testuser", "test@example.com", "hashed_password"))
-        user_id = cursor.lastrowid
         conn.commit()
         conn.close()
         
-        result = add_idea("New Idea", "New Content", user_id)
+        result = add_idea("New Idea", "New Content", "test@example.com")
         assert result > 0
         
         # Verify the idea was inserted
@@ -220,6 +219,37 @@ class TestDataHandler:
         count = cursor.fetchone()[0]
         conn.close()
         assert count == 1
+        
+        # Verify the idea has the correct owner
+        conn = sqlite3.connect(self.test_db)
+        cursor = conn.cursor()
+        cursor.execute("SELECT owner_id FROM ideas WHERE title = ?", ("New Idea",))
+        owner_id = cursor.fetchone()[0]
+        cursor.execute("SELECT id FROM users WHERE email = ?", ("test@example.com",))
+        user_id = cursor.fetchone()[0]
+        assert owner_id == user_id
+        conn.close()
+    
+    @patch('backend.data_handler.ChromaClient')
+    def test_add_idea_nonexistent_user(self, mock_chroma_client) -> None:
+        """Test add_idea function with non-existent user email"""
+        init_database()
+        
+        # Mock the ChromaClient to avoid actual embedding operations
+        mock_instance = Mock()
+        mock_chroma_client.return_value = mock_instance
+        
+        # Try to add an idea with a non-existent user email
+        result = add_idea("New Idea", "New Content", "nonexistent@example.com")
+        assert result == -1
+        
+        # Verify no idea was inserted
+        conn = sqlite3.connect(self.test_db)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM ideas WHERE title = ?", ("New Idea",))
+        count = cursor.fetchone()[0]
+        conn.close()
+        assert count == 0
     
     def test_add_tag(self) -> None:
         """Test add_tag function"""
