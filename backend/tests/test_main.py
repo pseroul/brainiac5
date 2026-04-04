@@ -79,8 +79,8 @@ class TestMainAPI:
         # Mock the get_ideas function to return test data
         # Note: tags should be strings, not lists, to match the Pydantic model
         mock_get_ideas.return_value = [
-            {"id": 1, "title": "Test Idea 1", "content": "Content 1", "tags": "tag1"},
-            {"id": 2, "title": "Test Idea 2", "content": "Content 2", "tags": "tag2"}
+            {"id": 1, "title": "Test Idea 1", "content": "Content 1", "tags": "tag1", "book_id": 1},
+            {"id": 2, "title": "Test Idea 2", "content": "Content 2", "tags": "tag2", "book_id": 1}
         ]
 
         # Get authentication headers
@@ -98,7 +98,7 @@ class TestMainAPI:
         # Mock the get_idea_from_tags function
         # Note: tags should be strings, not lists, to match the Pydantic model
         mock_get_ideas_by_tags.return_value = [
-            {"id": 1, "title": "Test Idea 1", "content": "Content 1", "tags": "tag1"}
+            {"id": 1, "title": "Test Idea 1", "content": "Content 1", "tags": "tag1", "book_id": 1}
         ]
 
         # Get authentication headers
@@ -119,7 +119,7 @@ class TestMainAPI:
         # Mock the get_similar_idea function
         # Note: tags should be strings, not lists, to match the Pydantic model
         mock_get_similar_idea.return_value = [
-            {"id": 1, "title": "Test Idea 1", "content": "Content 1", "tags": "tag1"}
+            {"id": 1, "title": "Test Idea 1", "content": "Content 1", "tags": "tag1", "book_id": 1}
         ]
 
         response = client.get("/ideas/search/test", headers=headers)
@@ -182,7 +182,7 @@ class TestMainAPI:
         # Mock the get_similar_idea function
         # Note: tags should be strings, not lists, to match the Pydantic model
         mock_get_similar_idea.return_value = [
-            {"id": 2, "title": "Similar Idea", "content": "Similar content", "tags": "tag1"}
+            {"id": 2, "title": "Similar Idea", "content": "Similar content", "tags": "tag1", "book_id": 1}
         ]
 
         response = client.get("/ideas/similar/TestIdea", headers=headers)
@@ -206,7 +206,8 @@ class TestMainAPI:
         idea_data = {
             "title": "New Idea",
             "content": "This is a new idea",
-            "tags": "tag1;tag2;tag3"
+            "tags": "tag1;tag2;tag3",
+            "book_id": 1
         }
 
         response = client.post("/ideas", json=idea_data, headers=headers)
@@ -215,7 +216,9 @@ class TestMainAPI:
         assert "id" in data
 
         # Verify that add_idea was called with correct parameters (using email instead of owner_id)
-        mock_add_idea.assert_called_once_with("New Idea", "This is a new idea", owner_email="test@example.com")
+        mock_add_idea.assert_called_once_with(
+            "New Idea", "This is a new idea", owner_email="test@example.com", book_id=1
+        )
 
         # Verify that tags were processed
         assert mock_add_tag.call_count == 3
@@ -230,10 +233,11 @@ class TestMainAPI:
         # Get authentication headers
         headers = self._get_auth_headers()
 
-        # Test without tags
+        # Test without tags but with book_id
         idea_data = {
             "title": "New Idea",
-            "content": "This is a new idea"
+            "content": "This is a new idea",
+            "book_id": 1
         }
 
         response = client.post("/ideas", json=idea_data, headers=headers)
@@ -321,7 +325,8 @@ class TestMainAPI:
             "id": 1,
             "title": "Updated Idea",
             "content": "Updated content",
-            "tags": "new-tag1;new-tag2"
+            "tags": "new-tag1;new-tag2",
+            "book_id": 1
         }
 
         response = client.put("/ideas/1", json=idea_data, headers=headers)
@@ -347,7 +352,8 @@ class TestMainAPI:
             json={
                 "id": 1,
                 "title": "Idea to Delete",
-                "content": "Content to delete"
+                "content": "Content to delete",
+                "book_id": 1
             },
             headers=headers
         )
@@ -542,7 +548,8 @@ class TestMainAPI:
 
             idea_data = {
                 "title": "New Idea",
-                "content": "This is a new idea"
+                "content": "This is a new idea",
+                "book_id": 1
             }
 
             response = client.post("/ideas", json=idea_data, headers=headers)
@@ -640,7 +647,8 @@ class TestMainAPI:
         idea_data = {
             "title": "New Idea",
             "content": "This is a new idea",
-            "tags": "tag1;tag2"
+            "tags": "tag1;tag2",
+            "book_id": 1
         }
 
         response = client.post("/ideas", json=idea_data, headers=headers)
@@ -995,7 +1003,8 @@ class TestEdgeCases:
             idea_data = {
                 "title": "Idea with Empty Tags",
                 "content": "Content",
-                "tags": ""
+                "tags": "",
+                "book_id": 1
             }
 
             response = client.post("/ideas", json=idea_data, headers=headers)
@@ -1016,7 +1025,8 @@ class TestEdgeCases:
                     idea_data = {
                         "title": "Idea with Whitespace Tags",
                         "content": "Content",
-                        "tags": "  tag1  ;  tag2  ;  tag3  "
+                        "tags": "  tag1  ;  tag2  ;  tag3  ",
+                        "book_id": 1
                     }
 
                     response = client.post("/ideas", json=idea_data, headers=headers)
@@ -1038,7 +1048,8 @@ class TestEdgeCases:
                     idea_data = {
                         "title": "Idea with Special Tags",
                         "content": "Content",
-                        "tags": "tag-1;tag_2;tag.3;tag@4"
+                        "tags": "tag-1;tag_2;tag.3;tag@4",
+                        "book_id": 1
                     }
 
                     response = client.post("/ideas", json=idea_data, headers=headers)
@@ -1060,7 +1071,8 @@ class TestEdgeCases:
                     idea_data = {
                         "title": "Idea with Duplicate Tags",
                         "content": "Content",
-                        "tags": "tag1;tag2;tag1;tag3;tag2"
+                        "tags": "tag1;tag2;tag1;tag3;tag2",
+                        "book_id": 1
                     }
 
                     response = client.post("/ideas", json=idea_data, headers=headers)
@@ -1082,7 +1094,8 @@ class TestEdgeCases:
 
             idea_data = {
                 "title": "Idea with Long Content",
-                "content": long_content
+                "content": long_content,
+                "book_id": 1
             }
 
             response = client.post("/ideas", json=idea_data, headers=headers)
@@ -1100,7 +1113,8 @@ class TestEdgeCases:
 
             idea_data = {
                 "title": "Idea with Special Chars: / \\ | ? * < >",
-                "content": "Content"
+                "content": "Content",
+                "book_id": 1
             }
 
             response = client.post("/ideas", json=idea_data, headers=headers)
@@ -1118,7 +1132,8 @@ class TestEdgeCases:
 
             idea_data = {
                 "title": "Idea with Unicode: 你好世界 🌍",
-                "content": "Content with unicode: café, naïve, résumé"
+                "content": "Content with unicode: café, naïve, résumé",
+                "book_id": 1
             }
 
             response = client.post("/ideas", json=idea_data, headers=headers)
