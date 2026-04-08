@@ -57,7 +57,7 @@ const FullContentModal = ({ isOpen, onClose, content, title }) => {
  * @param {Function} props.onShowFullContent - Callback to show full content
  * @returns {JSX.Element} Rendered TOC item
  */
-const TocItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
+const TocItem = ({ item, level = 1, onShowFullContent, allCollapsed, scoreMap = {} }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   
   const hasChildren = item.children && item.children.length > 0;
@@ -111,12 +111,13 @@ const TocItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
         {hasChildren && isItemExpanded && (
           <div className="ml-8 pl-4 border-l border-gray-200">
             {item.children.map((child, index) => (
-              <TocItem 
-                key={child.id || index} 
-                item={child} 
-                level={level + 1} 
+              <TocItem
+                key={child.id || index}
+                item={child}
+                level={level + 1}
                 onShowFullContent={onShowFullContent}
                 allCollapsed={allCollapsed}
+                scoreMap={scoreMap}
               />
             ))}
           </div>
@@ -125,8 +126,9 @@ const TocItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
     );
   } else {
     // Display idea item
+    const score = scoreMap[item.title] ?? 0;
     return (
-      <div 
+      <div
         className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer border-b border-gray-50 last:border-0"
         onClick={() => onShowFullContent(item.title, item.text)}
         role="button"
@@ -151,7 +153,16 @@ const TocItem = ({ item, level = 1, onShowFullContent, allCollapsed }) => {
             </span>
           </div>
         </div>
-        <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400" aria-hidden="true" />
+        <div className="flex items-center gap-3">
+          <span
+            data-testid="popularity-score"
+            className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600"
+            aria-label={`Popularity score: ${score}`}
+          >
+            {score > 0 ? `+${score}` : score}
+          </span>
+          <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400" aria-hidden="true" />
+        </div>
       </div>
     );
   }
@@ -201,23 +212,32 @@ const TableOfContents = () => {
   const [error, setError] = useState(null);
   const [allCollapsed, setAllCollapsed] = useState(false);
   const [bookIdeas, setBookIdeas] = useState(null);
+  const [scoreMap, setScoreMap] = useState({});
 
-  // When a specific book is selected, fetch ideas to filter the TOC
+  // Fetch ideas to build score map and optionally filter TOC by selected book
   useEffect(() => {
-    if (!selectedBook) {
-      setBookIdeas(null);
-      return;
-    }
     getIdeas()
       .then((res) => {
-        const titles = new Set(
-          res.data
-            .filter((idea) => idea.book_id === selectedBook.id)
-            .map((idea) => idea.title)
-        );
-        setBookIdeas(titles);
+        const map = {};
+        res.data.forEach((idea) => {
+          map[idea.title] = idea.score ?? 0;
+        });
+        setScoreMap(map);
+        if (selectedBook) {
+          const titles = new Set(
+            res.data
+              .filter((idea) => idea.book_id === selectedBook.id)
+              .map((idea) => idea.title)
+          );
+          setBookIdeas(titles);
+        } else {
+          setBookIdeas(null);
+        }
       })
-      .catch(() => setBookIdeas(null));
+      .catch(() => {
+        setBookIdeas(null);
+        setScoreMap({});
+      });
   }, [selectedBook]);
 
   const visibleToc = bookIdeas ? filterTocByTitles(tocStructure, bookIdeas) : tocStructure;
@@ -377,12 +397,13 @@ const TableOfContents = () => {
           <div className="space-y-1">
             {visibleToc.length > 0 ? (
               visibleToc.map((item, index) => (
-                <TocItem 
-                  key={item.id || index} 
-                  item={item} 
-                  level={1} 
+                <TocItem
+                  key={item.id || index}
+                  item={item}
+                  level={1}
                   onShowFullContent={handleShowFullContent}
                   allCollapsed={allCollapsed}
+                  scoreMap={scoreMap}
                 />
               ))
             ) : (

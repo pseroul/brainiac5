@@ -118,20 +118,26 @@ def get_idea_from_tags(tags: str, book_id: int | None = None) -> list[dict[Hasha
         conn = sqlite3.connect(os.getenv('NAME_DB'))
         if book_id is not None:
             query = f"""
-            SELECT DISTINCT i.id, i.title, i.content, i.book_id
+            SELECT i.id, i.title, i.content, i.book_id,
+                   COALESCE(SUM(iv.value), 0) AS score
             FROM ideas i
             JOIN relations r ON i.id = r.idea_id
             JOIN tags t ON r.tag_name = t.name
-            WHERE t.name IN ({placeholders}) AND i.book_id = ?;
+            LEFT JOIN idea_votes iv ON i.id = iv.idea_id
+            WHERE t.name IN ({placeholders}) AND i.book_id = ?
+            GROUP BY i.id, i.title, i.content, i.book_id;
             """
             params: list = tags_list + [book_id]
         else:
             query = f"""
-            SELECT DISTINCT i.id, i.title, i.content, i.book_id
+            SELECT i.id, i.title, i.content, i.book_id,
+                   COALESCE(SUM(iv.value), 0) AS score
             FROM ideas i
             JOIN relations r ON i.id = r.idea_id
             JOIN tags t ON r.tag_name = t.name
-            WHERE t.name IN ({placeholders});
+            LEFT JOIN idea_votes iv ON i.id = iv.idea_id
+            WHERE t.name IN ({placeholders})
+            GROUP BY i.id, i.title, i.content, i.book_id;
             """
             params = tags_list
         df = pd.read_sql_query(query, conn, params=params)
@@ -156,11 +162,14 @@ def get_ideas(book_id: int | None = None) -> list[dict[Hashable, Any]]:
             i.title,
             i.content,
             i.book_id,
-            GROUP_CONCAT(r.tag_name, ';') AS tags
+            GROUP_CONCAT(r.tag_name, ';') AS tags,
+            COALESCE(SUM(iv.value), 0) AS score
         FROM
             ideas i
         LEFT JOIN
             relations r ON i.id = r.idea_id
+        LEFT JOIN
+            idea_votes iv ON i.id = iv.idea_id
         WHERE
             i.book_id = ?
         GROUP BY
@@ -174,11 +183,14 @@ def get_ideas(book_id: int | None = None) -> list[dict[Hashable, Any]]:
             i.title,
             i.content,
             i.book_id,
-            GROUP_CONCAT(r.tag_name, ';') AS tags
+            GROUP_CONCAT(r.tag_name, ';') AS tags,
+            COALESCE(SUM(iv.value), 0) AS score
         FROM
             ideas i
         LEFT JOIN
             relations r ON i.id = r.idea_id
+        LEFT JOIN
+            idea_votes iv ON i.id = iv.idea_id
         GROUP BY
             i.id, i.title, i.content, i.book_id;
         """

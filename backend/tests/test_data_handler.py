@@ -118,6 +118,46 @@ class TestDataHandler:
         assert result[0]['content'] == "Test Content"
         assert result[0]['book_id'] == book_id
         assert 'test-tag' in result[0]['tags']
+        assert result[0]['score'] == 0
+
+    def test_get_ideas_score_reflects_votes(self) -> None:
+        """Test get_ideas returns correct vote score sum"""
+        init_database()
+        book_id = self._create_book()
+
+        conn = sqlite3.connect(self.test_db)
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO users (username, email, hashed_password) VALUES (?, ?, ?)",
+                      ("user1", "user1@example.com", "secret"))
+        user1_id = cursor.lastrowid
+        cursor.execute("INSERT INTO users (username, email, hashed_password) VALUES (?, ?, ?)",
+                      ("user2", "user2@example.com", "secret"))
+        user2_id = cursor.lastrowid
+
+        cursor.execute("INSERT INTO ideas (title, content, owner_id, book_id) VALUES (?, ?, ?, ?)",
+                      ("Voted Idea", "Content", user1_id, book_id))
+        idea_id = cursor.lastrowid
+
+        # user1 upvotes (+1), user2 downvotes (-1) → score = 0
+        cursor.execute(
+            "INSERT INTO idea_votes (idea_id, user_id, value, created_at) VALUES (?, ?, ?, datetime('now'))",
+            (idea_id, user1_id, 1)
+        )
+        cursor.execute(
+            "INSERT INTO idea_votes (idea_id, user_id, value, created_at) VALUES (?, ?, ?, datetime('now'))",
+            (idea_id, user2_id, -1)
+        )
+        conn.commit()
+        conn.close()
+
+        result = get_ideas()
+        assert len(result) == 1
+        assert result[0]['score'] == 0
+
+        # Now add another upvote from user1 (replace) → net +1
+        cast_vote(idea_id, "user2@example.com", 1)
+        result = get_ideas()
+        assert result[0]['score'] == 2
 
     def test_get_ideas_with_book_id(self) -> None:
         """Test get_ideas filters by book_id when provided"""
@@ -632,14 +672,44 @@ class TestDataHandler:
         result = get_idea_from_tags("test-tag")
         assert len(result) == 1
         assert result[0]['title'] == "Test Idea"
-        
+        assert result[0]['score'] == 0
+
         # Test with multiple tags (semicolon-separated)
         result = get_idea_from_tags("test-tag")
         assert len(result) == 1
-        
+
         # Test with empty string (should return all ideas)
         result = get_idea_from_tags("")
         assert isinstance(result, list)
+
+    def test_get_idea_from_tags_score_reflects_votes(self) -> None:
+        """Test get_idea_from_tags returns correct vote score sum"""
+        init_database()
+        book_id = self._create_book()
+
+        conn = sqlite3.connect(self.test_db)
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO users (username, email, hashed_password) VALUES (?, ?, ?)",
+                      ("voter", "voter@example.com", "secret"))
+        user_id = cursor.lastrowid
+
+        cursor.execute("INSERT INTO ideas (title, content, owner_id, book_id) VALUES (?, ?, ?, ?)",
+                      ("Tagged Idea", "Content", user_id, book_id))
+        idea_id = cursor.lastrowid
+
+        cursor.execute("INSERT INTO tags (name) VALUES (?)", ("my-tag",))
+        cursor.execute("INSERT INTO relations (idea_id, tag_name) VALUES (?, ?)", (idea_id, "my-tag"))
+
+        cursor.execute(
+            "INSERT INTO idea_votes (idea_id, user_id, value, created_at) VALUES (?, ?, ?, datetime('now'))",
+            (idea_id, user_id, 1)
+        )
+        conn.commit()
+        conn.close()
+
+        result = get_idea_from_tags("my-tag")
+        assert len(result) == 1
+        assert result[0]['score'] == 1
 
     def test_get_idea_from_tags_nonexistent_tag(self) -> None:
         """Test get_idea_from_tags with non-existent tag"""
