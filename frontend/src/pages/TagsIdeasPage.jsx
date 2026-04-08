@@ -177,7 +177,7 @@ const TagItem = ({ item, level = 1, onShowFullContent, allCollapsed, onDeleteTag
     
     if (isActualIdea) {
       return (
-        <div 
+        <div
           className="flex items-center justify-between p-4 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer border-b border-gray-50 last:border-0"
           onClick={() => onShowFullContent(item.name, item.description || '')}
           role="button"
@@ -199,7 +199,16 @@ const TagItem = ({ item, level = 1, onShowFullContent, allCollapsed, onDeleteTag
               )}
             </div>
           </div>
-          <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400" aria-hidden="true" />
+          <div className="flex items-center gap-3">
+            <span
+              data-testid="popularity-score"
+              className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600"
+              aria-label={`Popularity score: ${item.score}`}
+            >
+              {item.score > 0 ? `+${item.score}` : item.score}
+            </span>
+            <ChevronRight size={18} className="text-gray-300 group-hover:text-blue-400" aria-hidden="true" />
+          </div>
         </div>
       );
     } else {
@@ -294,6 +303,7 @@ const TagsIdeasPage = () => {
               id: idea.id,
               name: idea.title || 'Untitled Idea',
               description: idea.content || '',
+              score: idea.score ?? 0,
             })),
           };
         })
@@ -319,6 +329,7 @@ const TagsIdeasPage = () => {
         id: idea.id,
         name: idea.title || 'Untitled Idea',
         description: idea.content || '',
+        score: idea.score ?? 0,
       }));
 
       setUntaggedIdeas(untagged);

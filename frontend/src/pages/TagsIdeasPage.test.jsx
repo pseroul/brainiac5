@@ -71,19 +71,19 @@ const MOCK_TAGS = [
 
 const IDEAS_BY_TAG = {
   frontend: [
-    { id: '1', title: 'React Hooks',   content: 'About hooks' },
-    { id: '2', title: 'CSS Grid',      content: 'About grid' },
+    { id: '1', title: 'React Hooks',   content: 'About hooks',   score: 3 },
+    { id: '2', title: 'CSS Grid',      content: 'About grid',    score: 0 },
   ],
   backend: [
-    { id: '3', title: 'FastAPI Intro', content: 'About fastapi' },
+    { id: '3', title: 'FastAPI Intro', content: 'About fastapi', score: -1 },
   ],
 };
 
 const ALL_IDEAS = [
-  { id: '1', title: 'React Hooks',   content: 'About hooks' },
-  { id: '2', title: 'CSS Grid',      content: 'About grid' },
-  { id: '3', title: 'FastAPI Intro', content: 'About fastapi' },
-  { id: '4', title: 'Untagged Idea', content: 'No tag here' },
+  { id: '1', title: 'React Hooks',   content: 'About hooks',   score: 3 },
+  { id: '2', title: 'CSS Grid',      content: 'About grid',    score: 0 },
+  { id: '3', title: 'FastAPI Intro', content: 'About fastapi', score: -1 },
+  { id: '4', title: 'Untagged Idea', content: 'No tag here',   score: 5 },
 ];
 
 // ─── Setup helper ──────────────────────────────────────────────────────────────
@@ -197,6 +197,17 @@ describe('TagsIdeasPage — data rendering', () => {
     await waitFor(() =>
       expect(screen.getByText(/no tags available/i)).toBeInTheDocument()
     );
+  });
+
+  it('shows the popularity score badge for each idea', async () => {
+    render(<TagsIdeasPage />);
+    await waitFor(() => screen.getByText('React Hooks'));
+    const badges = screen.getAllByTestId('popularity-score');
+    expect(badges.length).toBeGreaterThan(0);
+    // React Hooks has score 3 → displayed as "+3"
+    expect(screen.getByText('+3')).toBeInTheDocument();
+    // FastAPI Intro has score -1 → displayed as "-1"
+    expect(screen.getByText('-1')).toBeInTheDocument();
   });
 });
 

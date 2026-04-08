@@ -56,7 +56,7 @@ vi.mock('../services/api', () => ({
 }));
 
 import TableOfContents from './TableOfContents';
-import { getTocStructure, updateTocStructure } from '../services/api';
+import { getTocStructure, updateTocStructure, getIdeas } from '../services/api';
 
 // ─── Test fixtures ─────────────────────────────────────────────────────────────
 const MOCK_TOC = [
@@ -79,11 +79,17 @@ const MOCK_TOC = [
   },
 ];
 
+const MOCK_IDEAS = [
+  { id: 1, title: 'First Idea',  content: 'Content of first idea',  book_id: 1, score: 4 },
+  { id: 2, title: 'Second Idea', content: 'Content of second idea', book_id: 1, score: -2 },
+];
+
 // ──────────────────────────────────────────────────────────────────────────────
 describe('TableOfContents — initial render', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getTocStructure.mockResolvedValue({ data: MOCK_TOC });
+    getIdeas.mockResolvedValue({ data: MOCK_IDEAS });
   });
 
   it('shows a loading spinner while fetching', () => {
@@ -135,6 +141,7 @@ describe('TableOfContents — data rendering', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getTocStructure.mockResolvedValue({ data: MOCK_TOC });
+    getIdeas.mockResolvedValue({ data: MOCK_IDEAS });
   });
 
   it('renders top-level heading titles', async () => {
@@ -166,6 +173,17 @@ describe('TableOfContents — data rendering', () => {
     );
   });
 
+  it('shows the popularity score badge for each leaf idea', async () => {
+    render(<TableOfContents />);
+    await waitFor(() => screen.getByText('First Idea'));
+    const badges = screen.getAllByTestId('popularity-score');
+    expect(badges.length).toBeGreaterThan(0);
+    // First Idea has score 4 → displayed as "+4"
+    expect(screen.getByText('+4')).toBeInTheDocument();
+    // Second Idea has score -2 → displayed as "-2"
+    expect(screen.getByText('-2')).toBeInTheDocument();
+  });
+
   it('shows the section count in the subtitle', async () => {
     render(<TableOfContents />);
     await waitFor(() => expect(screen.getByText('2 sections')).toBeInTheDocument());
@@ -176,6 +194,7 @@ describe('TableOfContents — data rendering', () => {
 describe('TableOfContents — error handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getIdeas.mockResolvedValue({ data: MOCK_IDEAS });
   });
 
   it('shows an error message when getTocStructure fails', async () => {
@@ -199,6 +218,7 @@ describe('TableOfContents — collapse / expand all', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getTocStructure.mockResolvedValue({ data: MOCK_TOC });
+    getIdeas.mockResolvedValue({ data: MOCK_IDEAS });
   });
 
   it('hides child ideas when "Collapse All" is clicked', async () => {
@@ -234,6 +254,7 @@ describe('TableOfContents — refresh', () => {
     vi.clearAllMocks();
     getTocStructure.mockResolvedValue({ data: MOCK_TOC });
     updateTocStructure.mockResolvedValue({});
+    getIdeas.mockResolvedValue({ data: MOCK_IDEAS });
   });
 
   it('calls updateTocStructure then getTocStructure on Refresh click', async () => {
@@ -290,6 +311,7 @@ describe('TableOfContents — full-content modal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getTocStructure.mockResolvedValue({ data: MOCK_TOC });
+    getIdeas.mockResolvedValue({ data: MOCK_IDEAS });
   });
 
   it('opens the modal when an idea item is clicked', async () => {
