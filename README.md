@@ -1,5 +1,5 @@
 
-# Brainiac 5
+# Consensia
 This application allows the management and the retrieval of ideas in order to find ideas by similarity, sort them, create contents for presentation or reports. 
 It contains two different services: 
 - backend: a fastapi server managing data that run on port 8000
