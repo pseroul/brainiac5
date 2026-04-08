@@ -38,7 +38,8 @@ api.interceptors.response.use(
   }
 );
 
-export const getIdeas = () => api.get('/ideas');
+export const getIdeas = (bookId = null) =>
+  api.get('/ideas', bookId != null ? { params: { book_id: bookId } } : {});
 export const getUserIdeas = () => api.get('/user/ideas');
 export const getIdeasFromTags = (tags, bookId = null) =>
   api.get(`/ideas/tags/${tags}`, bookId != null ? { params: { book_id: bookId } } : {});

@@ -125,34 +125,51 @@ def get_idea_from_tags(tags: str, book_id: int | None = None) -> list[dict[Hasha
         conn.close()
     return df.to_dict("records")
 
-def get_ideas() -> list[dict[Hashable, Any]]:
+def get_ideas(book_id: int | None = None) -> list[dict[Hashable, Any]]:
     """
-    Retrieve all ideas from the database with limit to prevent memory issues.
-    
-    Gets all records from the ideas table in the SQLite database.
-    
+    Retrieve ideas from the database with limit to prevent memory issues.
+
     Args:
-        limit (int): Maximum number of records to return
-        
+        book_id (int | None): Optional book ID to filter ideas by book
+
     Returns:
-        list[dict[Hashable, Any]]: List of dictionaries containing all ideas
+        list[dict[Hashable, Any]]: List of dictionaries containing ideas
     """
     conn = sqlite3.connect(os.getenv('NAME_DB'))
-    query = """
-    SELECT
-        i.id,
-        i.title,
-        i.content,
-        i.book_id,
-        GROUP_CONCAT(r.tag_name, ';') AS tags
-    FROM
-        ideas i
-    LEFT JOIN
-        relations r ON i.id = r.idea_id
-    GROUP BY
-        i.id, i.title, i.content, i.book_id;
-    """
-    df = pd.read_sql_query(query, conn)
+    if book_id is not None:
+        query = """
+        SELECT
+            i.id,
+            i.title,
+            i.content,
+            i.book_id,
+            GROUP_CONCAT(r.tag_name, ';') AS tags
+        FROM
+            ideas i
+        LEFT JOIN
+            relations r ON i.id = r.idea_id
+        WHERE
+            i.book_id = ?
+        GROUP BY
+            i.id, i.title, i.content, i.book_id;
+        """
+        df = pd.read_sql_query(query, conn, params=[book_id])
+    else:
+        query = """
+        SELECT
+            i.id,
+            i.title,
+            i.content,
+            i.book_id,
+            GROUP_CONCAT(r.tag_name, ';') AS tags
+        FROM
+            ideas i
+        LEFT JOIN
+            relations r ON i.id = r.idea_id
+        GROUP BY
+            i.id, i.title, i.content, i.book_id;
+        """
+        df = pd.read_sql_query(query, conn)
     conn.close()
 
     # Handle potential NaN values in the dataframe

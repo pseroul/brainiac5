@@ -148,6 +148,7 @@ describe('TagsIdeasPage — initial render', () => {
     expect(getIdeasFromTags).toHaveBeenCalledWith('frontend', null);
     expect(getIdeasFromTags).toHaveBeenCalledWith('backend', null);
     expect(getIdeas).toHaveBeenCalledTimes(1);
+    expect(getIdeas).toHaveBeenCalledWith(null);
   });
 });
 

@@ -181,17 +181,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 # GET endpoints
 @app.get("/ideas", response_model=List[IdeaItem])
-async def get_all_ideas(current_user: dict = Depends(get_current_user)) -> List[dict[Hashable, Any]]:
-    """Get all ideas.
-    
+async def get_all_ideas(
+    book_id: Optional[int] = None, current_user: dict = Depends(get_current_user)
+) -> List[dict[Hashable, Any]]:
+    """Get all ideas, optionally filtered to a specific book.
+
+    Args:
+        book_id (Optional[int]): Optional book ID to restrict ideas to that book.
+
     Returns:
         List[dict[Hashable, Any]]: List of ideas with their details.
-    
+
     Raises:
         HTTPException: If there's an error retrieving data from the database.
     """
     try:
-        ideas = get_ideas()
+        ideas = get_ideas(book_id)
         return ideas
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving data: {str(e)}") from e

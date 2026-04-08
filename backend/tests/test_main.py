@@ -91,6 +91,21 @@ class TestMainAPI:
         data = response.json()
         assert len(data) == 2
         assert data[0]["title"] == "Test Idea 1"
+        mock_get_ideas.assert_called_with(None)
+
+    @patch('backend.main.get_ideas')
+    def test_get_all_ideas_with_book_id(self, mock_get_ideas):
+        """Test getting ideas filtered by book_id"""
+        mock_get_ideas.return_value = [
+            {"id": 1, "title": "Test Idea 1", "content": "Content 1", "tags": "tag1", "book_id": 5}
+        ]
+        headers = self._get_auth_headers()
+
+        response = client.get("/ideas?book_id=5", headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        mock_get_ideas.assert_called_with(5)
 
     @patch('backend.main.get_idea_from_tags')
     def test_get_ideas_by_tags(self, mock_get_ideas_by_tags):
