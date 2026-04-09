@@ -28,6 +28,7 @@ vi.mock('lucide-react', () => {
     ArrowLeft:  icon('arrow-left-icon'),
     BookOpen:   icon('book-open-icon'),
     ChevronRight: icon('chevron-right-icon'),
+    Download:   icon('download-icon'),
     Loader2:    icon('loader-icon'),
     X:          icon('x-icon'),
     RotateCcw:  icon('rotate-ccw-icon'),
@@ -45,7 +46,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 
 // ─── Mock BookContext ─────────────────────────────────────────────────────────
 vi.mock('../contexts/BookContext', () => ({
-  useBook: () => ({ selectedBook: null, books: [], setSelectedBook: vi.fn() }),
+  useBook: vi.fn(() => ({ selectedBook: null, books: [], setSelectedBook: vi.fn() })),
 }));
 
 // ─── Mock API ─────────────────────────────────────────────────────────────────
@@ -57,6 +58,7 @@ vi.mock('../services/api', () => ({
 
 import TableOfContents from './TableOfContents';
 import { getTocStructure, updateTocStructure, getIdeas } from '../services/api';
+import { useBook } from '../contexts/BookContext';
 
 // ─── Test fixtures ─────────────────────────────────────────────────────────────
 const MOCK_TOC = [
@@ -367,5 +369,116 @@ describe('TableOfContents — full-content modal', () => {
     await waitFor(() =>
       expect(screen.getAllByText('Content of first idea').length).toBe(1)
     );
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+describe('TableOfContents — markdown export', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Restore default useBook implementation after any per-test override
+    useBook.mockImplementation(() => ({ selectedBook: null, books: [], setSelectedBook: vi.fn() }));
+    getTocStructure.mockResolvedValue({ data: MOCK_TOC });
+    getIdeas.mockResolvedValue({ data: MOCK_IDEAS });
+  });
+
+  it('renders the "Export MD" button', async () => {
+    render(<TableOfContents />);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /export as markdown/i })).toBeInTheDocument()
+    );
+  });
+
+  it('disables the Export MD button when there is no content', async () => {
+    getTocStructure.mockResolvedValue({ data: [] });
+    render(<TableOfContents />);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /export as markdown/i })).toBeDisabled()
+    );
+  });
+
+  it('triggers a file download with a .md filename when Export MD is clicked', async () => {
+    render(<TableOfContents />);
+    await waitFor(() => screen.getByText('Chapter One'));
+
+    // Set up download mocks AFTER render so React's own createElement calls are unaffected
+    const mockClick = vi.fn();
+    const mockAnchor = { href: '', download: '', click: mockClick };
+    const origCreateElement = document.createElement.bind(document);
+    const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url');
+    const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag) =>
+      tag === 'a' ? mockAnchor : origCreateElement(tag)
+    );
+
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /export as markdown/i }));
+
+      expect(createObjectURLSpy).toHaveBeenCalledWith(expect.any(Blob));
+      expect(mockAnchor.download).toMatch(/\.md$/);
+      expect(mockClick).toHaveBeenCalled();
+      expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:mock-url');
+    } finally {
+      createObjectURLSpy.mockRestore();
+      revokeObjectURLSpy.mockRestore();
+      createElementSpy.mockRestore();
+    }
+  });
+
+  it('includes the book title in the filename when a book is selected', async () => {
+    useBook.mockImplementation(() => ({ selectedBook: { id: 1, title: 'My Book' }, books: [], setSelectedBook: vi.fn() }));
+
+    render(<TableOfContents />);
+    await waitFor(() => screen.getByText('Chapter One'));
+
+    const mockAnchor = { href: '', download: '', click: vi.fn() };
+    const origCreateElement = document.createElement.bind(document);
+    const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:url');
+    const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag) =>
+      tag === 'a' ? mockAnchor : origCreateElement(tag)
+    );
+
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /export as markdown/i }));
+      expect(mockAnchor.download).toMatch(/My_Book\.md$/);
+    } finally {
+      createObjectURLSpy.mockRestore();
+      revokeObjectURLSpy.mockRestore();
+      createElementSpy.mockRestore();
+    }
+  });
+
+  it('includes idea titles and content in the exported markdown', async () => {
+    render(<TableOfContents />);
+    await waitFor(() => screen.getByText('Chapter One'));
+
+    let capturedBlob;
+    const origCreateElement = document.createElement.bind(document);
+    const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+      capturedBlob = blob;
+      return 'blob:url';
+    });
+    const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tag) =>
+      tag === 'a' ? { href: '', download: '', click: vi.fn() } : origCreateElement(tag)
+    );
+
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /export as markdown/i }));
+
+      const text = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsText(capturedBlob);
+      });
+      expect(text).toContain('Chapter One');
+      expect(text).toContain('First Idea');
+      expect(text).toContain('Content of first idea');
+    } finally {
+      createObjectURLSpy.mockRestore();
+      revokeObjectURLSpy.mockRestore();
+      createElementSpy.mockRestore();
+    }
   });
 });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, BookOpen, ChevronRight, Loader2, X, RotateCcw } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronRight, Download, Loader2, X, RotateCcw } from 'lucide-react';
 import { getTocStructure, updateTocStructure, getIdeas } from '../services/api';
 import { useBook } from '../contexts/BookContext';
 
@@ -200,6 +200,26 @@ const filterTocByTitles = (items, allowedTitles) =>
     return acc;
   }, []);
 
+/**
+ * Recursively convert a TOC tree to a markdown string.
+ * Top-level items use `#`, their children `##`, etc.
+ */
+const tocToMarkdown = (items, depth = 1) => {
+  const prefix = '#'.repeat(depth);
+  return items.reduce((md, item) => {
+    if (item.type === 'heading') {
+      md += `${prefix} ${item.title}\n\n`;
+      if (item.children?.length) {
+        md += tocToMarkdown(item.children, depth + 1);
+      }
+    } else {
+      md += `${prefix} ${item.title}\n\n`;
+      if (item.text) md += `${item.text}\n\n`;
+    }
+    return md;
+  }, '');
+};
+
 const TableOfContents = () => {
   const { selectedBook } = useBook() ?? {};
 
@@ -326,6 +346,27 @@ const TableOfContents = () => {
     setAllCollapsed(false);
   };
 
+  /**
+   * Export the visible TOC as a markdown file.
+   * Filename: <YYYYMMDD-HHmm>_<book-title>.md
+   */
+  const exportToMarkdown = () => {
+    const pad = (n) => String(n).padStart(2, '0');
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+    const bookSlug = (selectedBook?.title || 'toc').replace(/\s+/g, '_');
+    const filename = `${dateStr}_${bookSlug}.md`;
+
+    const markdown = tocToMarkdown(visibleToc);
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-white p-4 md:p-12">
       <div className="max-w-3xl mx-auto">
@@ -378,6 +419,15 @@ const TableOfContents = () => {
                 <RotateCcw size={18} />
               )}
               <span className="text-sm font-medium">Refresh</span>
+            </button>
+            <button
+              onClick={exportToMarkdown}
+              disabled={visibleToc.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+              aria-label="Export as Markdown"
+            >
+              <Download size={18} />
+              <span className="text-sm font-medium">Export MD</span>
             </button>
           </div>
         </div>
