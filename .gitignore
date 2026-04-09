@@ -1,1 +1,2 @@
 .coverage
+backend/tests/*.db

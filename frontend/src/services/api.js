@@ -68,3 +68,9 @@ export const getUsers = () => api.get('/users');
 export const getIdeaVotes = (id) => api.get(`/ideas/${id}/votes`);
 export const castVote = (id, value) => api.post(`/ideas/${id}/vote`, { value });
 export const removeVote = (id) => api.delete(`/ideas/${id}/vote`);
+
+// Admin user-management
+export const getAdminUsers = () => api.get('/admin/users');
+export const createAdminUser = (data) => api.post('/admin/users', data);
+export const updateAdminUser = (id, data) => api.put(`/admin/users/${id}`, data);
+export const deleteAdminUser = (id) => api.delete(`/admin/users/${id}`);

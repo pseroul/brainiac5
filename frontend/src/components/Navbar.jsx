@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, LogOut, Lightbulb, Home, User, Tag, BookOpen } from 'lucide-react';
+import { Menu, X, LogOut, Lightbulb, Home, User, Tag, BookOpen, Shield } from 'lucide-react';
 import BookSelector from './BookSelector';
+import { useAuth } from '../contexts/AuthContext';
 
 const Navbar = ({ isOpen: controlledIsOpen = false }) => {
   const [isOpen, setIsOpen] = useState(controlledIsOpen);
-  useLocation(); // re-render on route change to re-read localStorage
-  const isAuthenticated = !!localStorage.getItem('access_token');
+  useLocation(); // re-render on route change
+  const { isAuthenticated, user, logout } = useAuth();
 
   if (!isAuthenticated) return null;
 
   const handleLogout = () => {
-    localStorage.removeItem('access_token');
+    logout();
     window.location.href = '/';
   };
 
@@ -42,16 +43,16 @@ const Navbar = ({ isOpen: controlledIsOpen = false }) => {
       {isOpen && (
         <div className="absolute top-16 left-0 w-full bg-white border-b border-gray-200 shadow-xl animate-in slide-in-from-top duration-200">
           <div className="flex flex-col p-4 gap-2">
-            <Link 
-              to="/dashboard" 
+            <Link
+              to="/dashboard"
               onClick={toggleMenu}
               className="flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-gray-700 hover:text-blue-600 font-medium transition-all"
             >
               <Home size={20} /> Dashboard
             </Link>
-            
-            <Link 
-              to="/table-of-contents" 
+
+            <Link
+              to="/table-of-contents"
               onClick={toggleMenu}
               className="flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-gray-700 hover:text-blue-600 font-medium transition-all"
             >
@@ -73,6 +74,17 @@ const Navbar = ({ isOpen: controlledIsOpen = false }) => {
             >
               <BookOpen size={20} /> My Books
             </Link>
+
+            {user?.is_admin && (
+              <Link
+                to="/admin"
+                onClick={toggleMenu}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-gray-700 hover:text-blue-600 font-medium transition-all"
+                data-testid="admin-link"
+              >
+                <Shield size={20} /> Admin
+              </Link>
+            )}
 
             <hr className="my-2 border-gray-100" />
 

@@ -8,22 +8,44 @@ from data_handler import init_database
 
 logger = logging.getLogger("uvicorn.error")
 
+
+def generate_otp_secret() -> str:
+    """Generate a random base32 OTP secret."""
+    return pyotp.random_base32()
+
+
+def get_provisioning_uri(email: str, secret: str, debug: bool = False) -> str:
+    """Build a TOTP provisioning URI for QR-code generation.
+
+    Args:
+        email (str): User's email address (used as the account name).
+        secret (str): Base32 OTP secret.
+        debug (bool): Whether to use the dev app name.
+
+    Returns:
+        str: TOTP provisioning URI.
+    """
+    totp = pyotp.TOTP(secret)
+    issuer_name = "Seroul Pierre"
+    return totp.provisioning_uri(name=email, issuer_name=issuer_name)
+
+
 def generate_auth_link(email: str, debug: bool) -> None:
     """
     Generate authentication link and save user credentials.
-    
+
     Creates a Google Authenticator secret and saves user credentials to the SQLite database.
     Generates a provisioning URI for QR code generation.
-    
+
     Args:
         email (str): User's email address
         debug (bool): if we generate debug otp
-        
+
     Returns:
         None
     """
-    otp_secret = pyotp.random_base32()
-    
+    otp_secret = generate_otp_secret()
+
     # Save user to SQLite database
     conn = sqlite3.connect(os.getenv('NAME_DB'))
     cursor = conn.cursor()
@@ -41,36 +63,30 @@ def generate_auth_link(email: str, debug: bool) -> None:
     finally:
         conn.close()
 
-    totp = pyotp.TOTP(otp_secret)
-    appname = 'Brainiac5'
-    if debug: 
-        appname = "Brainiac5-dev"
-    issuer_name = "Seroul Pierre"
-    uri = totp.provisioning_uri(name=appname, issuer_name=issuer_name)
-
+    uri = get_provisioning_uri(email, otp_secret, debug)
     print(f"Pasted the following link in Qr.io to obtain a QR code : {uri}")
+
 
 def verify_access(email: str, secret_key: str) -> bool:
     conn = sqlite3.connect(os.getenv('NAME_DB'))
     cursor = conn.cursor()
-    
+
     try:
         cursor.execute(
             "SELECT hashed_password FROM users WHERE email = ?",
             (email,)
         )
         result = cursor.fetchone()
-        
+
         if result:
             otp_secret = result[0]
             totp = pyotp.TOTP(otp_secret)
             if totp.verify(secret_key):
                 return True
-        
+
         return False
     finally:
         conn.close()
-    
 
 
 if __name__ == "__main__":

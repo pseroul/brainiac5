@@ -93,6 +93,12 @@ def init_database() -> None:
     );
     """)
 
+    # Migration: add is_admin column if missing
+    cursor.execute("PRAGMA table_info(users)")
+    existing_columns = [col[1] for col in cursor.fetchall()]
+    if 'is_admin' not in existing_columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+
     conn.commit()
     conn.close()
 
@@ -755,12 +761,174 @@ def get_users() -> list[dict[Any, Any]]:
     Retrieve all users from the database.
 
     Returns:
-        list[dict]: List of user dicts containing id, username, and email
+        list[dict]: List of user dicts containing id, username, email, and is_admin
     """
     conn = sqlite3.connect(os.getenv('NAME_DB'))
-    df = pd.read_sql_query("SELECT id, username, email FROM users", conn)
+    df = pd.read_sql_query("SELECT id, username, email, is_admin FROM users", conn)
     conn.close()
     return df.to_dict("records")
+
+
+def get_user_by_id(user_id: int) -> dict[Any, Any] | None:
+    """
+    Retrieve a single user by ID.
+
+    Args:
+        user_id (int): The user's ID.
+
+    Returns:
+        dict | None: User dict (id, username, email, is_admin) or None if not found.
+    """
+    conn = sqlite3.connect(os.getenv('NAME_DB'))
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT id, username, email, is_admin FROM users WHERE id = ?",
+            (user_id,)
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return {"id": row[0], "username": row[1], "email": row[2], "is_admin": bool(row[3])}
+    finally:
+        conn.close()
+
+
+def get_user_by_email(email: str) -> dict[Any, Any] | None:
+    """
+    Retrieve a single user by email.
+
+    Args:
+        email (str): The user's email address.
+
+    Returns:
+        dict | None: User dict (id, username, email, is_admin) or None if not found.
+    """
+    conn = sqlite3.connect(os.getenv('NAME_DB'))
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT id, username, email, is_admin FROM users WHERE email = ?",
+            (email,)
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return {"id": row[0], "username": row[1], "email": row[2], "is_admin": bool(row[3])}
+    finally:
+        conn.close()
+
+
+def create_user(username: str, email: str, is_admin: bool = False) -> dict[Any, Any]:
+    """
+    Create a new user with a generated OTP secret.
+
+    Args:
+        username (str): Unique username.
+        email (str): Unique email address.
+        is_admin (bool): Whether the user has admin privileges.
+
+    Returns:
+        dict: Created user info including id, username, email, is_admin, and otp_uri.
+
+    Raises:
+        ValueError: If username or email already exists.
+    """
+    from authenticator import generate_otp_secret, get_provisioning_uri
+    otp_secret = generate_otp_secret()
+    conn = sqlite3.connect(os.getenv('NAME_DB'))
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO users (username, email, hashed_password, is_admin) VALUES (?, ?, ?, ?)",
+            (username, email, otp_secret, int(is_admin))
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+        otp_uri = get_provisioning_uri(email, otp_secret)
+        logger.info(f"User '{email}' created successfully (admin={is_admin}).")
+        return {
+            "id": new_id,
+            "username": username,
+            "email": email,
+            "is_admin": is_admin,
+            "otp_uri": otp_uri,
+        }
+    except sqlite3.IntegrityError as e:
+        raise ValueError(f"User with this username or email already exists: {e}") from e
+    finally:
+        conn.close()
+
+
+def update_user(user_id: int, username: str, email: str, is_admin: bool) -> bool:
+    """
+    Update a user's profile.
+
+    Args:
+        user_id (int): ID of the user to update.
+        username (str): New username.
+        email (str): New email address.
+        is_admin (bool): New admin status.
+
+    Returns:
+        bool: True if a row was updated, False if user not found.
+
+    Raises:
+        ValueError: If the new username or email conflicts with an existing user.
+    """
+    conn = sqlite3.connect(os.getenv('NAME_DB'))
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "UPDATE users SET username = ?, email = ?, is_admin = ? WHERE id = ?",
+            (username, email, int(is_admin), user_id)
+        )
+        conn.commit()
+        updated = cursor.rowcount > 0
+        if updated:
+            logger.info(f"User '{user_id}' updated successfully.")
+        return updated
+    except sqlite3.IntegrityError as e:
+        raise ValueError(f"Username or email already taken: {e}") from e
+    finally:
+        conn.close()
+
+
+def delete_user(user_id: int) -> bool:
+    """
+    Delete a user from the database.
+
+    Args:
+        user_id (int): ID of the user to delete.
+
+    Returns:
+        bool: True if a row was deleted, False if user not found.
+    """
+    conn = sqlite3.connect(os.getenv('NAME_DB'))
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        deleted = cursor.rowcount > 0
+        if deleted:
+            logger.info(f"User '{user_id}' deleted successfully.")
+        return deleted
+    except sqlite3.Error as e:
+        logger.info(f"Error deleting user '{user_id}': {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def count_admins() -> int:
+    """Return the total number of admin users."""
+    conn = sqlite3.connect(os.getenv('NAME_DB'))
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1")
+        return cursor.fetchone()[0]
+    finally:
+        conn.close()
 
 
 # VOTE FUNCTIONS

@@ -17,7 +17,8 @@ from data_handler import (
     get_content, get_tags, get_tags_from_idea, add_idea, add_tag,
     add_relation, remove_idea, remove_tag, remove_relation, update_idea, get_similar_idea,
     add_book, get_books, remove_book, add_book_author, remove_book_author, get_book_authors,
-    get_users, cast_vote, remove_vote, get_idea_votes, get_user_vote
+    get_users, cast_vote, remove_vote, get_idea_votes, get_user_vote,
+    get_user_by_id, get_user_by_email, create_user, update_user, delete_user, count_admins,
 )
 
 logger = logging.getLogger("uvicorn.error")
@@ -118,13 +119,39 @@ class VoteItem(BaseModel):
 
 class LoginRequest(BaseModel):
     """Data model for login requests with email and OTP code.
-    
+
     Attributes:
         email (str): The user's email address.
         otp_code (str): The one-time password code for verification.
     """
     email: str
     otp_code: str
+
+
+class AdminUserCreate(BaseModel):
+    """Payload for admin user creation.
+
+    Attributes:
+        username (str): Unique username.
+        email (str): Unique email address.
+        is_admin (bool): Whether the new user has admin privileges.
+    """
+    username: str
+    email: str
+    is_admin: bool = False
+
+
+class AdminUserUpdate(BaseModel):
+    """Payload for admin user update.
+
+    Attributes:
+        username (str): New username.
+        email (str): New email address.
+        is_admin (bool): New admin status.
+    """
+    username: str
+    email: str
+    is_admin: bool
 
 # Helper function to get database connection
 def get_db():
@@ -184,9 +211,117 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-        return {"email": email}
+        is_admin: bool = bool(payload.get("is_admin", False))
+        return {"email": email, "is_admin": is_admin}
     except JWTError:
         raise credentials_exception from None
+
+def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    """Dependency that allows access only to admin users.
+
+    Raises:
+        HTTPException: 403 if the authenticated user is not an admin.
+    """
+    if not current_user.get("is_admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return current_user
+
+
+# Admin user-management endpoints
+@app.get("/admin/users", response_model=List[dict])
+async def admin_list_users(admin: dict = Depends(require_admin)) -> List[dict]:
+    """List all users (admin only).
+
+    Returns:
+        List[dict]: All users with id, username, email, and is_admin.
+    """
+    try:
+        return get_users()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving users: {str(e)}") from e
+
+
+@app.post("/admin/users", response_model=dict, status_code=201)
+async def admin_create_user(
+    payload: AdminUserCreate, admin: dict = Depends(require_admin)
+) -> dict:
+    """Create a new user (admin only).
+
+    Returns:
+        dict: Created user info including the TOTP provisioning URI.
+
+    Raises:
+        HTTPException: 409 if username or email already exists.
+    """
+    try:
+        user = create_user(payload.username, payload.email, payload.is_admin)
+        return user
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}") from e
+
+
+@app.put("/admin/users/{user_id}", response_model=dict)
+async def admin_update_user(
+    user_id: int, payload: AdminUserUpdate, admin: dict = Depends(require_admin)
+) -> dict:
+    """Update a user's profile (admin only).
+
+    Returns:
+        dict: Updated user info.
+
+    Raises:
+        HTTPException: 404 if user not found, 409 on uniqueness conflict.
+    """
+    try:
+        updated = update_user(user_id, payload.username, payload.email, payload.is_admin)
+        if not updated:
+            raise HTTPException(status_code=404, detail="User not found")
+        user = get_user_by_id(user_id)
+        return user
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating user: {str(e)}") from e
+
+
+@app.delete("/admin/users/{user_id}", response_model=dict)
+async def admin_delete_user(
+    user_id: int, admin: dict = Depends(require_admin)
+) -> dict:
+    """Delete a user (admin only).
+
+    Guards:
+        - Cannot delete yourself.
+        - Cannot delete the last remaining admin.
+
+    Raises:
+        HTTPException: 400 on guard violations, 404 if user not found.
+    """
+    target = get_user_by_id(user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if target["email"] == admin["email"]:
+        raise HTTPException(status_code=400, detail="Cannot self-delete your own account")
+
+    if target["is_admin"] and count_admins() <= 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete the last admin account",
+        )
+
+    deleted = delete_user(user_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": f"User '{user_id}' deleted successfully"}
+
 
 # GET endpoints
 @app.get("/ideas", response_model=List[IdeaItem])
@@ -799,15 +934,21 @@ def verify_otp(request: LoginRequest) -> dict[str, str]:
     """
     # Check the 6-digit code
     if verify_access(request.email, request.otp_code):
+        try:
+            user = get_user_by_email(request.email)
+            is_admin = bool(user["is_admin"]) if user else False
+        except Exception:
+            is_admin = False
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": request.email}, expires_delta=access_token_expires
+            data={"sub": request.email, "is_admin": is_admin},
+            expires_delta=access_token_expires,
         )
         return {
-            "status": "success", 
+            "status": "success",
             "message": "Connection authorized",
             "access_token": access_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
         }
     else:
         raise HTTPException(status_code=401, detail="Invalid or expired code")
