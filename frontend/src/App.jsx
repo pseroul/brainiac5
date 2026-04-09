@@ -8,19 +8,25 @@ import TableOfContents from './pages/TableOfContents';
 import TagsIdeasPage from './pages/TagsIdeasPage';
 import Navbar from './components/Navbar';
 import BooksPage from './pages/BooksPage';
+import AdminPage from './pages/AdminPage';
 import { BookProvider } from './contexts/BookContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
-  // const auth = true; // Simulation for debug
-  const auth = localStorage.getItem('access_token');
-  return auth ? children : <Navigate to="/" />;
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? children : <Navigate to="/" />;
 };
 
-function App() {
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/" />;
+  if (!user?.is_admin) return <Navigate to="/dashboard" />;
+  return children;
+};
+
+function AppRoutes() {
   return (
     <div className="pt-20 p-4"> {/* pt-20 laisse de la place sous la Navbar */}
-    <Router>
-    <BookProvider>
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
@@ -29,22 +35,22 @@ function App() {
             <Route path="/" element={<Login />} />
 
             {/* Routes protégées */}
-            <Route 
-              path="/dashboard" 
+            <Route
+              path="/dashboard"
               element={
                 <ProtectedRoute>
                   <Dashboard />
                 </ProtectedRoute>
-              } 
+              }
             />
-            
-            <Route 
-              path="/table-of-contents" 
+
+            <Route
+              path="/table-of-contents"
               element={
                 <ProtectedRoute>
                   <TableOfContents />
                 </ProtectedRoute>
-              } 
+              }
             />
 
             <Route
@@ -65,14 +71,34 @@ function App() {
               }
             />
 
+            {/* Route admin */}
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminPage />
+                </AdminRoute>
+              }
+            />
+
             {/* Redirection si l'URL n'existe pas */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </div>
-    </BookProvider>
-    </Router>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <BookProvider>
+          <AppRoutes />
+        </BookProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

@@ -40,6 +40,12 @@ vi.mock('react-router-dom', async (importOriginal) => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+// ─── Mock AuthContext ─────────────────────────────────────────────────────────
+const mockLogin = vi.fn();
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: () => ({ login: mockLogin }),
+}));
+
 // ─── Mock API ─────────────────────────────────────────────────────────────────
 vi.mock('../services/api', () => ({
   verifyOtp: vi.fn(),
@@ -187,12 +193,12 @@ describe('Login — successful authentication', () => {
     }));
   });
 
-  it('stores the JWT token in localStorage on success', async () => {
+  it('calls login() from AuthContext with the JWT token on success', async () => {
     renderLogin();
     fillForm();
     fireEvent.submit(document.querySelector('form'));
     await waitFor(() =>
-      expect(localStorage.getItem('access_token')).toBe('jwt-token-abc')
+      expect(mockLogin).toHaveBeenCalledWith('jwt-token-abc')
     );
   });
 

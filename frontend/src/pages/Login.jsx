@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, ShieldCheck, LogIn, Loader2 } from 'lucide-react';
 import { verifyOtp } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Login Component - Handles user authentication with OTP verification
@@ -22,6 +23,7 @@ import { verifyOtp } from '../services/api';
 const Login = () => {
   // Navigation hook for routing
   const navigate = useNavigate();
+  const { login } = useAuth();
   
   // State management for form data
   const [email, setEmail] = useState('');
@@ -63,8 +65,8 @@ const Login = () => {
       
       // Check if authentication was successful
       if (response && response.data && response.data.status === 'success') {
-        // Store JWT token
-        localStorage.setItem('access_token', response.data.access_token);
+        // Store JWT token and decode user info via AuthContext
+        login(response.data.access_token);
         setSuccess(true);
         // Navigate to dashboard
         navigate('/dashboard');

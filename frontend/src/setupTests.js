@@ -80,6 +80,10 @@ vi.mock('lucide-react', () => ({
   RotateCcw:     () => null,
   UserPlus:      () => null,
   UserMinus:     () => null,
+  Shield:        () => null,
+  Pencil:        () => null,
+  Copy:          () => null,
+  RefreshCw:     () => null,
 }));
 
 // Mock localStorage
