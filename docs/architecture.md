@@ -111,7 +111,7 @@ graph TB
     end
 
     subgraph Services["Services (src/services/)"]
-        API["api.js\nAxios instance\nBASE_URL = VITE_API_URL\nRequest interceptor: add Bearer token\nResponse interceptor: 401 → logout"]
+        API["api.js\nAxios instance\nBASE_URL = VITE_API_URL\nRequest interceptor: add Bearer token\nResponse interceptor: 401 → silent refresh\nor clear tokens + redirect /"]
     end
 
     Router --> ProtectedRoute
@@ -208,28 +208,46 @@ sequenceDiagram
     SQLite-->>FastAPI: TOTP secret
     FastAPI->>FastAPI: pyotp.TOTP(secret).verify(otp_code)
     alt OTP valid
-        FastAPI-->>Browser: {access_token, token_type: "bearer"}
-        Browser->>Browser: localStorage.setItem("access_token", token)
+        FastAPI-->>Browser: {access_token (30 min), refresh_token (7 days)}
+        Browser->>Browser: localStorage.setItem("access_token", ...)<br/>localStorage.setItem("refresh_token", ...)
         Browser->>Browser: Redirect to /dashboard
     else OTP invalid / expired
         FastAPI-->>Browser: 401 Unauthorized
     end
 
     Note over Browser,FastAPI: Subsequent authenticated requests
-    Browser->>FastAPI: GET /ideas (Authorization: Bearer <token>)
-    FastAPI->>FastAPI: JWT.decode(token, JWT_SECRET_KEY)
+    Browser->>FastAPI: GET /ideas (Authorization: Bearer <access_token>)
+    FastAPI->>FastAPI: JWT.decode(token) — verify type == "access"
     FastAPI->>SQLite: SELECT is_admin WHERE email=?
     FastAPI-->>Browser: 200 OK [ideas array]
 
-    Note over Browser: Token expiry (30 min)
+    Note over Browser,FastAPI: Silent token refresh (access token expired)
     FastAPI-->>Browser: 401 Unauthorized
-    Browser->>Browser: localStorage.clear() → redirect to /
+    Browser->>Browser: axios interceptor — queue concurrent requests
+    Browser->>FastAPI: POST /auth/refresh {refresh_token}
+    FastAPI->>FastAPI: JWT.decode(refresh_token) — verify type == "refresh"
+    alt Refresh token valid
+        FastAPI-->>Browser: new {access_token, refresh_token} (rotated)
+        Browser->>Browser: update localStorage with new tokens
+        Browser->>FastAPI: retry original request with new access_token
+        FastAPI-->>Browser: 200 OK — user session continues uninterrupted
+    else Refresh token invalid / expired
+        FastAPI-->>Browser: 401 Unauthorized
+        Browser->>Browser: clear both tokens → redirect to /
+    end
 ```
 
 **JWT claims:**
-- `sub`: user email
-- `exp`: now + 30 minutes
-- Algorithm: HS256
+
+| Claim | Access token | Refresh token |
+|---|---|---|
+| `sub` | user email | user email |
+| `exp` | now + 30 minutes | now + 7 days |
+| `type` | `"access"` | `"refresh"` |
+| `is_admin` | boolean | boolean |
+| Algorithm | HS256 | HS256 |
+
+The `type` claim prevents cross-use: `get_current_user()` rejects any token where `type != "access"`, and `POST /auth/refresh` rejects tokens where `type != "refresh"`. Tokens without a `type` claim (issued before this feature) default to `"access"` for backwards compatibility.
 
 The frontend decodes the JWT payload client-side (without signature verification) solely to read `is_admin` for UI decisions. All authorisation is enforced server-side on every request.
 

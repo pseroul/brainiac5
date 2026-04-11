@@ -67,10 +67,16 @@ Before submitting any change:
 ### Auth Flow
 1. User submits email + TOTP code → `POST /verify-otp`
 2. Server verifies TOTP against `users.hashed_password` (OTP secret) in SQLite
-3. Returns JWT (HS256, 30 min expiry)
-4. Frontend stores in `localStorage.access_token`
-5. Axios interceptor adds `Authorization: Bearer <token>` to all requests; 401 clears token and redirects to `/`
-6. `AuthContext` exposes `isAuthenticated`, `user` (includes `is_admin`), `login()`, `logout()`
+3. Returns **two tokens**: `access_token` (HS256, 30 min, claim `type: "access"`) and `refresh_token` (HS256, 7 days, claim `type: "refresh"`)
+4. Frontend stores both in `localStorage` (`access_token`, `refresh_token`)
+5. Axios request interceptor adds `Authorization: Bearer <access_token>` to every request
+6. Axios response interceptor handles 401 transparently:
+   - If the failing request was `/auth/refresh` itself → clear both tokens + redirect `/` (anti-loop guard)
+   - If no `refresh_token` in localStorage → clear `access_token` + redirect `/`
+   - Otherwise → call `POST /auth/refresh` silently; concurrent 401s are queued and replayed with the new token; on success the session continues without user interaction
+   - If refresh call fails → clear both tokens + redirect `/`
+7. `AuthContext` exposes `isAuthenticated`, `user` (includes `is_admin`), `login(accessToken, refreshToken)`, `logout()`
+8. TOTP re-auth is only needed once per week at most (refresh token TTL)
 
 ### Role-Based Access
 - `ProtectedRoute` — checks `isAuthenticated` from `AuthContext`
@@ -106,15 +112,16 @@ Before submitting any change:
 
 ### Frontend Key Files
 - `src/App.jsx` — Routes + `ProtectedRoute` / `AdminRoute` wrappers
-- `src/services/api.js` — Axios instance with JWT interceptors; `baseURL` from `VITE_API_URL` env var (default: `http://localhost:8000`)
-- `src/contexts/AuthContext.jsx` — `useAuth()` hook; exposes `isAuthenticated`, `user`, `login()`, `logout()`
+- `src/services/api.js` — Axios instance with JWT interceptors; `baseURL` from `VITE_API_URL` env var (default: `http://localhost:8000`); module-level queue (`isRefreshing`, `failedQueue`) prevents multiple concurrent refresh calls
+- `src/contexts/AuthContext.jsx` — `useAuth()` hook; exposes `isAuthenticated`, `user`, `login(accessToken, refreshToken)`, `logout()` (logout clears both tokens)
 - `src/contexts/BookContext.jsx` — `useBook()` hook; selected book state shared across pages
 - `src/pages/` — Login, Dashboard, TableOfContents, TagsIdeasPage, BooksPage, AdminPage
 - `src/components/` — Navbar, IdeaModal, VoteButtons, BookSelector, ImpactComments
 
 ### API Structure
 All non-auth endpoints require Bearer token. Key routes:
-- `POST /verify-otp` — OTP authentication → JWT
+- `POST /verify-otp` — OTP authentication → `access_token` (30 min) + `refresh_token` (7 days)
+- `POST /auth/refresh` — exchange a valid `refresh_token` for new `access_token` + rotated `refresh_token` (no auth header needed)
 - `GET/POST /ideas`, `PUT/DELETE /ideas/{id}` — idea CRUD; `book_id` required on POST
 - `GET /user/ideas` — ideas owned by current user
 - `GET /ideas/similar/{idea}` — semantic similarity via ChromaDB

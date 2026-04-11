@@ -14,11 +14,11 @@ Admin-only endpoints additionally require `is_admin = true` on the authenticated
 
 ---
 
-## Authentication
+## Authentication Endpoints
 
 ### `POST /verify-otp`
 
-Authenticate with email and TOTP code. Returns a JWT on success.
+Authenticate with email and TOTP code. Returns an access token and a refresh token on success.
 
 **Auth required:** No
 
@@ -38,15 +38,53 @@ Authenticate with email and TOTP code. Returns a JWT on success.
   "status": "success",
   "message": "OTP verified successfully",
   "access_token": "<jwt>",
+  "refresh_token": "<jwt>",
   "token_type": "bearer"
 }
 ```
+
+- `access_token`: short-lived JWT (30 min, claim `type: "access"`) — attach to every API request
+- `refresh_token`: long-lived JWT (7 days, claim `type: "refresh"`) — used only for silent renewal via `POST /auth/refresh`
 
 **Response `401`:**
 
 ```json
 { "detail": "Invalid or expired OTP" }
 ```
+
+---
+
+### `POST /auth/refresh`
+
+Exchange a valid refresh token for a new access token and a rotated refresh token. Called automatically by the frontend axios interceptor when an authenticated request returns 401 — not intended to be called directly by users.
+
+**Auth required:** No (pass the refresh token in the request body)
+
+**Request body:**
+
+```json
+{ "refresh_token": "<refresh_jwt>" }
+```
+
+**Response `200`:**
+
+```json
+{
+  "access_token": "<new_jwt>",
+  "refresh_token": "<new_refresh_jwt>",
+  "token_type": "bearer"
+}
+```
+
+The refresh token is **rotated** on every call — the old token is immediately superseded and should be replaced in `localStorage`.
+
+**Response `401`:** Token invalid, expired, or wrong type (`type` claim ≠ `"refresh"`).
+
+```json
+{ "detail": "Could not validate credentials" }
+```
+
+**Response `422`:** Missing or malformed request body.
 
 ---
 
