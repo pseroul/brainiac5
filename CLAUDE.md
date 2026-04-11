@@ -61,6 +61,7 @@ Before submitting any change:
 - Dead code: if `vulture` (Python) or `knip` (JS) flags something, delete it — no exceptions
 - Validation: Pydantic (backend) and Zod (frontend) for all external data
 - SOLID: refactor violations in any file you touch before adding features
+- Documentation: update `CLAUDE.md` whenever a feature is added — new endpoints, schema changes, frontend pages/components, env variables, and architectural decisions must be reflected immediately
 
 ## Architecture
 
