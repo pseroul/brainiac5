@@ -363,6 +363,179 @@ Open `http://<your-public-ip>` in a browser, log in with your email and the OTP 
 
 ---
 
+## Optional: LLM Backends for Table of Contents
+
+Consensia can generate book-like chapter titles and a narrative reading order for its Table of Contents using an LLM. This is **entirely optional** — without any LLM backend, the system automatically falls back to a TF-IDF keyword extractor that always works.
+
+The backend selects an LLM at startup in this priority order:
+
+1. **Claude API** — if `ANTHROPIC_API_KEY` is set (best quality)
+2. **Ollama** — if a local server responds on `OLLAMA_URL` (offline, free)
+3. **TF-IDF** — always available (zero external dependencies)
+
+You can configure either option below (or both — Claude will be tried first). See [data-science.md](data-science.md#llm-powered-title-generation) for how the pipeline uses these backends.
+
+---
+
+### Option 1: Claude API (recommended)
+
+The Anthropic Claude API offers the best title quality and narrative ordering. It is a paid service, but TOC generation uses small prompts with the cheapest model (`claude-haiku-4-5-20251001`), so real-world cost is usually a few cents per month for a personal instance.
+
+#### 1. Create an Anthropic account
+
+Go to [console.anthropic.com](https://console.anthropic.com) and sign up with an email address. You will need to verify your email and add a payment method before you can generate a key.
+
+#### 2. Add credits
+
+Claude API is prepaid. Navigate to **Plans & Billing → Buy credits** and add a small amount (e.g. $5) — this is more than enough for months of Consensia usage.
+
+#### 3. Generate an API key
+
+1. In the console, go to **Settings → API Keys**
+2. Click **Create Key**
+3. Give it a descriptive name (e.g. `consensia-rpi-prod`)
+4. Copy the key — it starts with `sk-ant-api03-...`. **You cannot view it again** after closing the dialog.
+
+#### 4. Configure the backend
+
+**Local development** — export the key in your shell (or add it to `~/.bashrc` / `~/.zshrc`):
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-api03-..."
+```
+
+**Raspberry Pi (production)** — add it to `/etc/environment` so systemd picks it up:
+
+```bash
+sudo nano /etc/environment
+```
+
+Append:
+
+```
+ANTHROPIC_API_KEY="sk-ant-api03-..."
+```
+
+Optionally override the default model (only needed if you want a different Claude variant):
+
+```
+LLM_MODEL="claude-haiku-4-5-20251001"
+```
+
+Restart the service to apply:
+
+```bash
+sudo systemctl restart consensia
+```
+
+#### 5. Verify
+
+Check the backend logs for the LLM init message:
+
+```bash
+journalctl -u consensia -n 50 | grep -i llm
+# Expected: "ClaudeLlmClient initialised (model=claude-haiku-4-5-20251001)"
+```
+
+Then trigger a TOC rebuild from the app (TOC page → **Update Structure**) and confirm the chapter titles look like book titles rather than keyword lists.
+
+---
+
+### Option 2: Ollama (local, offline)
+
+If you prefer to keep all inference on-device — for privacy, zero cost, or air-gapped deployments — Ollama runs small language models locally. On a Raspberry Pi 5 with 16 GB RAM, a 3B-parameter model (e.g. `phi3:mini` or `llama3.2:3b`) produces acceptable titles with a generation time of roughly 5–15 seconds per TOC refresh.
+
+> **Hardware note:** Ollama runs on the CPU. The Raspberry Pi AI HAT+ (Hailo NPU) is **not** currently used by Ollama — Hailo accelerates vision models, not the transformer architectures Ollama serves. You may still see noticeable CPU load during TOC generation.
+
+#### 1. Install Ollama on the Raspberry Pi
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+The installer creates an `ollama` user, registers a systemd service (`ollama.service`), and starts it listening on `127.0.0.1:11434`.
+
+Verify it is running:
+
+```bash
+systemctl status ollama
+curl http://localhost:11434/api/tags
+# Expected: {"models":[]}
+```
+
+#### 2. Pull a model
+
+Small models work best on Raspberry Pi. `phi3:mini` (3.8B params, ~2.3 GB) is the default:
+
+```bash
+ollama pull phi3:mini
+```
+
+Alternatives to consider (trade-offs between quality and speed):
+
+| Model | Size | RAM needed | Notes |
+|---|---|---|---|
+| `phi3:mini` | ~2.3 GB | ~4 GB | Fast, small, decent quality — default |
+| `llama3.2:3b` | ~2.0 GB | ~4 GB | Good instruction-following |
+| `qwen2.5:3b` | ~1.9 GB | ~4 GB | Strong at structured output (JSON) |
+| `gemma2:2b` | ~1.6 GB | ~3 GB | Fastest — use if the above are slow |
+
+Pull with:
+
+```bash
+ollama pull <model-name>
+```
+
+#### 3. Configure the backend to use Ollama
+
+If `ANTHROPIC_API_KEY` is **not** set, Consensia will probe `OLLAMA_URL` (default `http://localhost:11434`) at startup and automatically use it if reachable. You only need to set environment variables if you customised the installation.
+
+**Local development:**
+
+```bash
+export OLLAMA_URL="http://localhost:11434"
+export OLLAMA_MODEL="phi3:mini"
+```
+
+**Raspberry Pi (production)** — add to `/etc/environment`:
+
+```
+OLLAMA_URL="http://localhost:11434"
+OLLAMA_MODEL="phi3:mini"
+```
+
+Then restart:
+
+```bash
+sudo systemctl restart consensia
+```
+
+#### 4. Verify
+
+```bash
+journalctl -u consensia -n 50 | grep -i llm
+# Expected: "OllamaLlmClient initialised (url=http://localhost:11434, model=phi3:mini)"
+```
+
+#### 5. Memory considerations
+
+Ollama loads the model into memory on first inference and keeps it resident for a few minutes. On a Raspberry Pi 5 with 16 GB RAM, running Consensia + ChromaDB + Ollama + `phi3:mini` comfortably fits within budget. On smaller Pis (4 GB), prefer Claude API or the TF-IDF fallback.
+
+Check usage during a TOC refresh:
+
+```bash
+free -h
+htop
+```
+
+---
+
+### Falling back to TF-IDF only
+
+If you set neither `ANTHROPIC_API_KEY` nor run Ollama, Consensia uses the built-in TF-IDF keyword extractor. This requires no configuration and produces short keyword-based titles (e.g. `"Machine Learning & Hardware"`). No action needed — this is the default.
+
+---
+
 ## Optional: HTTPS with a Custom Domain
 
 > **Requires a domain name.** IP-only deployments cannot use Certbot.

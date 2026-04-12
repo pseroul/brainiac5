@@ -157,6 +157,8 @@ Each cluster is given a book-like chapter title using an LLM (Claude API, Ollama
 
 The LLM client abstraction is in `backend/llm_client.py` and follows the `LlmPort` Protocol for testability.
 
+> **Setup:** See [installation.md — LLM Backends for Table of Contents](installation.md#optional-llm-backends-for-table-of-contents) for step-by-step instructions on creating an Anthropic account, generating an API key, or installing Ollama locally on a Raspberry Pi.
+
 #### 6. LLM-powered section ordering
 
 After titles are generated, sections are reordered to create a coherent narrative arc. The LLM determines the optimal reading order: foundational concepts first, then applications, then advanced topics.
