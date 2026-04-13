@@ -404,27 +404,31 @@ Claude API is prepaid. Navigate to **Plans & Billing → Buy credits** and add a
 export ANTHROPIC_API_KEY="sk-ant-api03-..."
 ```
 
-**Raspberry Pi (production)** — add it to `/etc/environment` so systemd picks it up:
+**Raspberry Pi (production)** — edit the Consensia systemd unit file so the key is scoped to the service:
 
 ```bash
-sudo nano /etc/environment
+sudo systemctl edit --full consensia.service
 ```
 
-Append:
+Add an `Environment=` line in the `[Service]` section:
 
-```
-ANTHROPIC_API_KEY="sk-ant-api03-..."
-```
-
-Optionally override the default model (only needed if you want a different Claude variant):
-
-```
-LLM_MODEL="claude-haiku-4-5-20251001"
+```ini
+[Service]
+Environment="ANTHROPIC_API_KEY=sk-ant-api03-..."
 ```
 
-Restart the service to apply:
+Optionally override the default model on another line (only needed if you want a different Claude variant):
+
+```ini
+Environment="LLM_MODEL=claude-haiku-4-5-20251001"
+```
+
+> **Note:** earlier versions of this guide suggested putting env vars in `/etc/environment`. That still works **if the file exists** and your unit has `EnvironmentFile=/etc/environment`, but adding `Environment=` lines directly in the unit file is simpler and works on every image (including minimal Raspberry Pi OS builds where `/etc/environment` is absent).
+
+Reload and restart the service to apply:
 
 ```bash
+sudo systemctl daemon-reload
 sudo systemctl restart consensia
 ```
 
@@ -497,16 +501,23 @@ export OLLAMA_URL="http://localhost:11434"
 export OLLAMA_MODEL="phi3:mini"
 ```
 
-**Raspberry Pi (production)** — add to `/etc/environment`:
-
-```
-OLLAMA_URL="http://localhost:11434"
-OLLAMA_MODEL="phi3:mini"
-```
-
-Then restart:
+**Raspberry Pi (production)** — edit the Consensia unit file:
 
 ```bash
+sudo systemctl edit --full consensia.service
+```
+
+Add these two lines to the `[Service]` section:
+
+```ini
+Environment="OLLAMA_URL=http://localhost:11434"
+Environment="OLLAMA_MODEL=phi3:mini"
+```
+
+Then reload and restart:
+
+```bash
+sudo systemctl daemon-reload
 sudo systemctl restart consensia
 ```
 
@@ -610,16 +621,23 @@ curl http://localhost:11434/api/tags
 
 #### 5. Configure Consensia
 
-Because `hailo-ollama` speaks the Ollama REST API, just point `OLLAMA_URL` at it. Edit `/etc/environment`:
-
-```
-OLLAMA_URL="http://localhost:11434"
-OLLAMA_MODEL="qwen2:1.5b"
-```
-
-Make sure `ANTHROPIC_API_KEY` is **not** set (or empty) so the factory in `backend/llm_client.py` falls through to the Ollama backend:
+Because `hailo-ollama` speaks the Ollama REST API, just point `OLLAMA_URL` at it. Edit the Consensia unit file:
 
 ```bash
+sudo systemctl edit --full consensia.service
+```
+
+In the `[Service]` section, add:
+
+```ini
+Environment="OLLAMA_URL=http://localhost:11434"
+Environment="OLLAMA_MODEL=qwen2:1.5b"
+```
+
+Make sure there is **no** `Environment="ANTHROPIC_API_KEY=..."` line (or that it is empty) so the factory in `backend/llm_client.py` falls through to the Ollama backend. Then:
+
+```bash
+sudo systemctl daemon-reload
 sudo systemctl restart consensia
 journalctl -u consensia -n 50 | grep -i llm
 # Expected: "OllamaLlmClient initialised (url=http://localhost:11434, model=qwen2:1.5b)"
