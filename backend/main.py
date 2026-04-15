@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import Hashable, List, Optional, Any
+import asyncio
 import sqlite3
 import uvicorn
 from authenticator import verify_access
@@ -1086,7 +1087,8 @@ async def update_toc_structure(current_user: dict = Depends(get_current_user)) -
     try:
         llm = create_llm_client()
         data_similarity = DataSimilarity(llm=llm)
-        data_similarity.generate_toc_structure()
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, data_similarity.generate_toc_structure)
         return {"message": "toc added successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating TOC structure: {str(e)}") from e

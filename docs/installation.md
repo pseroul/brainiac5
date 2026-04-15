@@ -278,6 +278,15 @@ server {
     }
 
     # Backend (FastAPI) via reverse proxy
+    # TOC update triggers re-clustering + LLM calls — give it up to 10 min
+    location /api/toc/update {
+        proxy_pass http://127.0.0.1:8000/toc/update;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+
     location /api/ {
         proxy_pass http://127.0.0.1:8000/;
         proxy_set_header Host $host;
@@ -318,7 +327,8 @@ ExecStart=/home/youruser/consensia/backend/venv/bin/gunicorn \
     -w 1 \
     -k uvicorn.workers.UvicornWorker \
     main:app \
-    --bind 127.0.0.1:8000
+    --bind 127.0.0.1:8000 \
+    --timeout 600
 
 [Install]
 WantedBy=multi-user.target
