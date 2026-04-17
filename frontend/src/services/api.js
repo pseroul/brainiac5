@@ -57,8 +57,8 @@ api.interceptors.response.use(
     }
 
     // Prevent infinite retry loop if the refresh endpoint itself returns 401.
-    // The outer catch in the refresh flow will call clearSession().
     if (originalRequest.url === '/auth/refresh') {
+      clearSession();
       return Promise.reject(error);
     }
 
@@ -97,7 +97,10 @@ api.interceptors.response.use(
       return api.request(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError, null);
-      clearSession();
+      // Anti-loop guard already cleared the session when /auth/refresh returns 401.
+      const alreadyCleared = refreshError?.response?.status === 401 &&
+        refreshError?.config?.url === '/auth/refresh';
+      if (!alreadyCleared) clearSession();
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
