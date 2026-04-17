@@ -56,9 +56,9 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Prevent infinite retry loop if the refresh endpoint itself returns 401
+    // Prevent infinite retry loop if the refresh endpoint itself returns 401.
+    // The outer catch in the refresh flow will call clearSession().
     if (originalRequest.url === '/auth/refresh') {
-      clearSession();
       return Promise.reject(error);
     }
 
@@ -76,9 +76,12 @@ api.interceptors.response.use(
 
     const storedRefreshToken = localStorage.getItem('refresh_token');
     if (!storedRefreshToken) {
-      // No refresh token available — force logout
       processQueue(error, null);
-      clearSession();
+      // Only redirect if the user had an active session — not on unauthenticated requests
+      // (e.g. a 401 from /verify-otp when the user is not yet logged in).
+      if (localStorage.getItem('access_token')) {
+        clearSession();
+      }
       return Promise.reject(error);
     }
 

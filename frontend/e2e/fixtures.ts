@@ -15,7 +15,13 @@
 import { Page, Route } from '@playwright/test';
 
 export const API_URL = process.env.VITE_API_URL ?? 'http://localhost:8000';
-export const FAKE_TOKEN = 'e2e-fake-jwt-token';
+// A minimal but structurally valid JWT: header.payload.signature
+// payload decodes to {"sub":"test@example.com","is_admin":false}
+// AuthContext only base64-decodes the payload — signature is never verified client-side.
+export const FAKE_TOKEN =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' +
+  '.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIiwiaXNfYWRtaW4iOmZhbHNlfQ' +
+  '.ZmFrZQ';
 export const FAKE_REFRESH_TOKEN = 'e2e-fake-refresh-token';
 
 // ---------------------------------------------------------------------------

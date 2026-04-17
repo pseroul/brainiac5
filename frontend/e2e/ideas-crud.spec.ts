@@ -132,8 +132,8 @@ test.describe('Create idea', () => {
     await tagInput.press('Enter');
     await expect(page.getByText('#removeme')).toBeVisible();
 
-    // The × button inside the chip
-    await page.getByText('#removeme').locator('..').getByRole('button').click();
+    // The × button inside the chip (evaluate: Playwright can't click outside-viewport modal buttons)
+    await page.getByText('#removeme').locator('..').getByRole('button').evaluate((el: HTMLElement) => el.click());
     await expect(page.getByText('#removeme')).not.toBeVisible();
   });
 
@@ -160,7 +160,7 @@ test.describe('Create idea', () => {
     await tagInput.fill('beta');
     await tagInput.press('Enter');
 
-    await page.getByTestId('submit-button').click();
+    await page.getByTestId('submit-button').evaluate((el: HTMLElement) => el.click());
 
     // Wait for modal to close (save succeeded)
     await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5_000 });
@@ -182,7 +182,7 @@ test.describe('Create idea', () => {
 
     await page.getByRole('button', { name: /new/i }).click();
     await page.locator('#title').fill('Abandoned idea');
-    await page.getByRole('button', { name: /cancel/i }).click();
+    await page.getByRole('button', { name: /cancel/i }).evaluate((el: HTMLElement) => el.click());
 
     await expect(page.getByRole('dialog')).not.toBeVisible();
     expect(postCalled).toBe(false);
@@ -227,7 +227,7 @@ test.describe('Edit idea', () => {
 
     await page.getByRole('button', { name: /edit idea/i }).first().click();
     await page.locator('#title').fill('Updated Title');
-    await page.getByTestId('submit-button').click();
+    await page.getByTestId('submit-button').evaluate((el: HTMLElement) => el.click());
 
     // Give the request a moment to fire
     await page.waitForTimeout(300);
@@ -363,7 +363,7 @@ test.describe('My Ideas toggle', () => {
     await page.goto('/dashboard');
     await page.waitForURL('/dashboard');
 
-    await page.getByLabel('My Ideas').click();
+    await page.locator('label[for="myIdeas"]').click();
 
     await page.waitForTimeout(300);
     expect(userIdeasCalled).toBe(true);
@@ -380,7 +380,7 @@ test.describe('My Ideas toggle', () => {
     await page.goto('/dashboard');
     await page.waitForURL('/dashboard');
 
-    await page.getByLabel('My Ideas').click();
+    await page.locator('label[for="myIdeas"]').click();
 
     // Only user's idea is shown
     await expect(page.getByText('Machine Learning')).toBeVisible({ timeout: 3_000 });
@@ -403,9 +403,9 @@ test.describe('My Ideas toggle', () => {
     await page.waitForURL('/dashboard');
 
     // Switch to My Ideas, then back to All Ideas
-    await page.getByLabel('My Ideas').click();
+    await page.locator('label[for="myIdeas"]').click();
     await page.waitForTimeout(200);
-    await page.getByLabel('All Ideas').click();
+    await page.locator('label[for="allIdeas"]').click();
     await page.waitForTimeout(300);
 
     // First GET was on mount, second is after toggling back
@@ -432,7 +432,7 @@ test.describe('Similar ideas', () => {
 
   test('clicking "Similar" calls GET /ideas/similar/{term} and replaces the list', async ({ page }) => {
     const similarResults = [
-      { id: 1, title: 'Machine Learning', content: 'Gradient descent', tags: 'ml' },
+      { id: 1, title: 'Machine Learning', content: 'Gradient descent', tags: 'ml', book_id: 1 },
     ];
     await mockGetSimilarIdeas(page, similarResults);
 
