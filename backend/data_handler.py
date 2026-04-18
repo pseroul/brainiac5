@@ -404,20 +404,21 @@ def add_idea(title: str, content: str, owner_email: str, book_id: int) -> int:
         )
         conn.commit()
         new_id = cursor.lastrowid
-        
-        # Run embedding insertion asynchronously using thread pool
-        with ThreadPoolExecutor() as executor:
-            future = executor.submit(lambda: ChromaClient().insert_idea(title=title, content=content))
-            # Wait for completion but don't block the main thread significantly
-            future.result(timeout=30)  # 30 second timeout
-            
-        logger.info(f"idea '{title}'  added successfully.")
+
+        try:
+            with ThreadPoolExecutor() as executor:
+                future = executor.submit(lambda: ChromaClient().insert_idea(title=title, content=content))
+                future.result(timeout=30)
+        except Exception as e:
+            logger.info(f"Warning: ChromaDB embedding failed for '{title}': {e}")
+
+        logger.info(f"idea '{title}' added successfully.")
         return new_id
     except sqlite3.IntegrityError:
-        logger.info(f"Errr : idea '{title}' already exists.")
+        logger.info(f"Error: idea '{title}' already exists.")
         return -1
     except Exception as e:
-        logger.info(f"Error adding embedding for '{title}': {e}")
+        logger.info(f"Error adding idea '{title}': {e}")
         return -1
     finally:
         conn.close()

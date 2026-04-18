@@ -541,7 +541,10 @@ async def create_idea(data: IdeaItem, current_user: dict = Depends(get_current_u
         raise HTTPException(status_code=400, detail="book_id is required")
     try:
         new_id = add_idea(data.title, data.content, owner_email=user_email, book_id=data.book_id)
-        
+
+        if new_id < 0:
+            return {"id": new_id}
+
         # Handle tags if provided - convert string to list if needed
         if data.tags and data.tags.strip():
             # Split the semicolon-separated string into individual tags
